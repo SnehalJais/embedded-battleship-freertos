@@ -32,8 +32,12 @@ typedef enum {
     BUTTON_STATE_RISING_EDGE,
 } button_state_t;
 
-// Function to initialize the buttons
-cy_rslt_t buttons_init_gpio(void);
+/**
+ * @brief Initialize all three buttons (SW1, SW2, SW3) as inputs with pull-up resistors
+ * 
+ * @return cy_rslt_t Returns CY_RSLT_SUCCESS if all buttons were initialized successfully
+ */
+cy_rslt_t buttons_init(void);
 
 // Function to initialize the timer for button debouncing
 cy_rslt_t buttons_init_timer(void);
