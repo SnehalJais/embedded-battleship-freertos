@@ -16,11 +16,32 @@
 #include "cyhal_gpio.h"
 #include "ece353-pins.h"
 
-// Function to initialize the LEDs
-//cy_rslt_t leds_init_gpio(void);
+/* Enumerated type for selecting which LED to control */
+typedef enum {
+    LED_RED = 0,    /* Red LED */
+    LED_GREEN,      /* Green LED */
+    LED_BLUE,       /* Blue LED */
+} ece353_led_t;
 
-// Function to set the state of a specific LED
-//void leds_set_state(ece353_led_t led, ece353_led_state_t state);
+/* Enumerated type for LED states */
+typedef enum {
+    LED_OFF = 0,    /* LED is turned off */
+    LED_ON          /* LED is turned on */
+} ece353_led_state_t;
 
+/**
+ * @brief Initialize all three LEDs (Red, Green, Blue) as outputs
+ * 
+ * @return cy_rslt_t Returns CY_RSLT_SUCCESS if all LEDs were initialized successfully
+ */
+cy_rslt_t leds_init(void);
+
+/**
+ * @brief Set the state of a specific LED
+ * 
+ * @param led The LED to control (RED, GREEN, or BLUE)
+ * @param state The desired state of the LED (ON or OFF)
+ */
+void leds_set_state(ece353_led_t led, ece353_led_state_t state);
 
 #endif

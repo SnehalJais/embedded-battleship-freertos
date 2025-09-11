@@ -3359,7 +3359,7 @@ const FONT_INFO Consolas_20ptFontInfo =
 void lcd_draw_time(uint8_t minutes, uint8_t seconds)
 {
 	uint8_t digits[5] = 
-	{
+	{	
 		minutes / 10, 	// minute_tens
 		minutes % 10, 	// minute_ones
 		10, 			// colon

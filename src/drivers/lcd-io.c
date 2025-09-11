@@ -20,6 +20,26 @@
 *******************************************************************************/
 __STATIC_INLINE void lcd_write_cmd_u8(uint8_t DL)
 {
+  //set the CSX pin low to select the LCD
+  PORT_LCD_CSX -> OUT_CLR = mASK_LCD_CSX;
+
+  //Set the DCX pin low to indicate that we are writing a command
+  PORT_LCD_DCX -> OUT_CLR = mASK_LCD_DCX;
+
+  //write data to the data pins
+  PORT_LCD_DATA ->OUT = DL;
+
+  //set the wrx pin low to indicate that we are writing data
+  PORT_LCD_WRX -> OUT_CLR = mASK_LCD_WRX;
+
+  //set the wrx pin high to complete the write
+  PORT_LCD_WRX -> OUT_SET = mASK_LCD_WRX;
+
+  //set the DCX pin high to show we are done writing a command
+  PORT_LCD_DCX -> OUT_SET = mASK_LCD_DCX;
+
+  //set the CSX pin to high to show we are done writing to LCD
+  PORT_LCD_CSX -> OUT_SET = mASK_LCD_CSX;
 }
 
 /*******************************************************************************
@@ -31,6 +51,21 @@ __STATIC_INLINE void lcd_write_cmd_u8(uint8_t DL)
 *******************************************************************************/
 __STATIC_INLINE void  lcd_write_data_u8 (uint8_t x)
 {
+  //set the CSX pin low to select the LCD
+  PORT_LCD_CSX -> OUT_CLR = mASK_LCD_CSX;
+
+  //write data to the data pins
+  PORT_LCD_DATA ->OUT = x;
+
+  //set the wrx pin low to indicate that we are writing data
+  PORT_LCD_WRX -> OUT_CLR = mASK_LCD_WRX;
+
+  //set the wrx pin high to complete the write
+  PORT_LCD_WRX -> OUT_SET = mASK_LCD_WRX;
+
+
+  //set the CSX pin to high to show we are done writing to LCD
+  PORT_LCD_CSX -> OUT_SET = mASK_LCD_CSX;
 }
 
 /*******************************************************************************
@@ -43,6 +78,32 @@ __STATIC_INLINE void  lcd_write_data_u8 (uint8_t x)
 //write  data word
 __STATIC_INLINE void  lcd_write_data_u16(uint16_t y)
 {
+  uint8_t upper_byte = (y >> 8) & 0xFF;
+  uint8_t lower_byte = y & 0xFF;
+
+  //set the CSX pin low to select the LCD
+  PORT_LCD_CSX -> OUT_CLR = mASK_LCD_CSX;
+
+  //write data to the data pins
+  PORT_LCD_DATA ->OUT = upper_byte;
+
+  //set the wrx pin low to indicate that we are writing data
+  PORT_LCD_WRX -> OUT_CLR = mASK_LCD_WRX;
+
+  //set the wrx pin high to complete the write
+  PORT_LCD_WRX -> OUT_SET = mASK_LCD_WRX;
+
+  //write data to the data pins
+  PORT_LCD_DATA ->OUT = lower_byte;
+
+  //set the wrx pin low to indicate that we are writing data
+  PORT_LCD_WRX -> OUT_CLR = mASK_LCD_WRX;
+
+  //set the wrx pin high to complete the write
+  PORT_LCD_WRX -> OUT_SET = mASK_LCD_WRX;
+
+  //set the CSX pin to high to show we are done writing to LCD
+  PORT_LCD_CSX -> OUT_SET = mASK_LCD_CSX;
 }
 
 /*******************************************************************************
@@ -421,9 +482,33 @@ void lcd_config_screen(void)
 *******************************************************************************/
 cy_rslt_t lcd_config_gpio(void)
 {
-  cy_rslt_t rslt = CY_RSLT_SUCCESS;
+  cy_rslt_t rslt;
 
-  return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_D0, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_D1, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;   
+
+  rslt = cyhal_gpio_init(PIN_LCD_D2, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_D3, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_D4, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_D5, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_D6, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_D7, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_CSX, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_DCX, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS) return rslt;
+  rslt = cyhal_gpio_init(PIN_LCD_WRX, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+  if (rslt != CY_RSLT_SUCCESS)return rslt;
+    
+ 
 }
 
 /*******************************************************************************

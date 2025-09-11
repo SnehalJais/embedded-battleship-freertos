@@ -41,6 +41,13 @@ void app_init_hw(void)
     cy_rslt_t rslt;
 
     console_init();
+    //initialize LCD
+    rslt = lcd_initialize();
+    if (rslt != CY_RSLT_SUCCESS)
+    {
+        printf("LCD initialization failed with error: %d\n", rslt);
+       CY_ASSERT(0);
+    }
     printf("\x1b[2J\x1b[;H");
     printf("**************************************************\n\r");
     printf("* %s\n\r", APP_DESCRIPTION);
@@ -60,7 +67,7 @@ void app_init_hw(void)
  */
 void app_main(void)
 {
-    
+   lcd_draw_time(11,11);
     while(1)
     {
     }

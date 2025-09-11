@@ -42,7 +42,7 @@
 /* This macro is used to determine if we are building an executable for example code or ICE code.
  * Only a single line should be uncommented at one time.  
 */
-#define EX01         /* Example Code C Basics*/
+//#define EX01         /* Example Code C Basics*/
 //#define EX02         /* Example Code LCD */
 //#define EX03         /* Example Code Timer Interrupts */
 //#define EX04         /* Example Code Timer Interrupts */

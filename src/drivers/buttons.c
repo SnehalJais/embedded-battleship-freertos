@@ -16,9 +16,6 @@ cyhal_gpio_t button_sw1;
 cyhal_gpio_t button_sw2;
 cyhal_gpio_t button_sw3;
 
-/* Static variables to store previous button states */
-static bool prev_button_states[3] = {true, true, true};  // Initialize to true (pulled up)
-
 /**
  * @brief Initialize all three buttons (SW1, SW2, SW3) as inputs with pull-up resistors
  * 
@@ -32,7 +29,7 @@ cy_rslt_t buttons_init(void)
     rslt = cyhal_gpio_init(
         PIN_BUTTON_SW1,                    /* Pin */
         CYHAL_GPIO_DIR_INPUT,             /* Direction */
-        CYHAL_GPIO_DRIVE_PULLUP,          /* Drive Mode */
+        CYHAL_GPIO_DRIVE_NONE,          /* Drive Mode */
         true                              /* Init State - High due to pull-up */
     );
     if (rslt != CY_RSLT_SUCCESS) return rslt;
@@ -41,7 +38,7 @@ cy_rslt_t buttons_init(void)
     rslt = cyhal_gpio_init(
         PIN_BUTTON_SW2,                    /* Pin */
         CYHAL_GPIO_DIR_INPUT,             /* Direction */
-        CYHAL_GPIO_DRIVE_PULLUP,          /* Drive Mode */
+        CYHAL_GPIO_DRIVE_NONE,          /* Drive Mode */
         true                              /* Init State - High due to pull-up */
     );
     if (rslt != CY_RSLT_SUCCESS) return rslt;
@@ -50,7 +47,7 @@ cy_rslt_t buttons_init(void)
     rslt = cyhal_gpio_init(
         PIN_BUTTON_SW3,                    /* Pin */
         CYHAL_GPIO_DIR_INPUT,             /* Direction */
-        CYHAL_GPIO_DRIVE_PULLUP,          /* Drive Mode */
+        CYHAL_GPIO_DRIVE_NONE,          /* Drive Mode */
         true                              /* Init State - High due to pull-up */
     );
 
@@ -65,36 +62,61 @@ cy_rslt_t buttons_init(void)
  */
 button_state_t buttons_get_state(ece353_button_t button)
 {
-    bool current_state;
-    
+    /* Static variables to store previous button states */
+    static bool prev_button1 = true;
+    static bool prev_button2 = true;
+    static bool prev_button3 = true;
+
+    static bool curr_button1 = true;
+    static bool curr_button2 = true;
+    static bool curr_button3 = true;
+
+    bool current;
+    bool prev;
     /* Get the current logic level of the specified button */
     switch(button) {
         case BUTTON_SW1:
-            current_state = cyhal_gpio_read(PIN_BUTTON_SW1);
+            curr_button1 = cyhal_gpio_read(PIN_BUTTON_SW1);
+            current = curr_button1;
+            prev = prev_button1;
             break;
         case BUTTON_SW2:
-            current_state = cyhal_gpio_read(PIN_BUTTON_SW2);
+            curr_button2 = cyhal_gpio_read(PIN_BUTTON_SW2);
+            current = curr_button2;
+            prev = prev_button2;
             break;
         case BUTTON_SW3:
-            current_state = cyhal_gpio_read(PIN_BUTTON_SW3);
+            curr_button3 = cyhal_gpio_read(PIN_BUTTON_SW3);
+            current = curr_button3;
+            prev = prev_button3;
             break;
         default:
             return BUTTON_STATE_HIGH; // Default to high (unpressed) for invalid button
     }
-    
     /* Get button state based on current and previous logic levels */
     button_state_t state;
-    
-    if (current_state == prev_button_states[button]) {
+
+    if (current == prev) {
         /* No change in state */
-        state = current_state ? BUTTON_STATE_HIGH : BUTTON_STATE_LOW;
+        state = current ? BUTTON_STATE_HIGH : BUTTON_STATE_LOW;
     } else {
         /* State changed */
-        state = current_state ? BUTTON_STATE_RISING_EDGE : BUTTON_STATE_FALLING_EDGE;
+        state = current ? BUTTON_STATE_RISING_EDGE : BUTTON_STATE_FALLING_EDGE;
     }
     
     /* Update previous state */
-    prev_button_states[button] = current_state;
-    
+    switch(button) {
+        case BUTTON_SW1:
+            prev_button1 = current;
+            break;
+        case BUTTON_SW2:
+            prev_button2 = current;
+            break;
+        case BUTTON_SW3:
+            prev_button3 = current;
+            break;
+        default:
+            break; // Should not reach here
+    }
     return state;
 }

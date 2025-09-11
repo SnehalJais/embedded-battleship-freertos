@@ -10,3 +10,84 @@
  */
 
  #include "leds.h"
+
+/**
+ * @brief Initialize all three LEDs (Red, Green, Blue) as outputs
+ * 
+ * @return cy_rslt_t Returns CY_RSLT_SUCCESS if all LEDs were initialized successfully
+ */
+cy_rslt_t leds_init(void)
+{
+    cy_rslt_t rslt;
+
+    /* Initialize RED LED */
+    rslt = cyhal_gpio_init(PIN_LED_RED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+    if (rslt != CY_RSLT_SUCCESS) {
+        return rslt;
+    }
+
+    /* Initialize GREEN LED */
+    rslt = cyhal_gpio_init(PIN_LED_GREEN, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+    if (rslt != CY_RSLT_SUCCESS) {
+        return rslt;
+    }
+
+    /* Initialize BLUE LED */
+    rslt = cyhal_gpio_init(PIN_LED_BLUE, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+    return rslt;
+}
+
+/**
+ * @brief Set the state of a specific LED
+ * 
+ * @param led The LED to control (RED, GREEN, or BLUE)
+ * @param state The desired state of the LED (ON or OFF)
+ */
+void leds_set_state(ece353_led_t led, ece353_led_state_t state)
+{
+    
+
+
+    /* Since LEDs are active low, we need to invert the state */
+    //bool pin_state = (state == LED_ON) ? 0 : 1;
+    
+    /* Use switch for fastest execution - compiler will generate jump table */
+    switch(led)
+    {
+        case LED_RED:
+            if (state == LED_ON)
+            {
+                PORT_LED_RED->OUT |= MASK_LED_RED; // Turn on Red LED
+            } else
+            {
+                PORT_LED_RED->OUT &= ~MASK_LED_RED; // Turn off Red LED
+            }
+            
+
+            break;
+        case LED_GREEN:
+            if (state == LED_ON)
+            {
+                PORT_LED_GREEN ->OUT   |= MASK_LED_GREEN; // Turn on Green LED
+                /* code */
+            } else
+            {
+                PORT_LED_GREEN ->OUT   &= ~MASK_LED_GREEN; // Turn off Green LED
+            }
+            
+            break;
+        case LED_BLUE:
+               if (state == LED_ON)
+            {
+                PORT_LED_BLUE ->OUT   |= MASK_LED_BLUE; // Turn on Green LED
+                  /* code */
+            } else
+            {
+                PORT_LED_BLUE ->OUT   &= ~MASK_LED_BLUE; // Turn off Green LED
+            }
+            break;
+        default:
+            /* Invalid LED - do nothing */
+            break;
+    }
+}
