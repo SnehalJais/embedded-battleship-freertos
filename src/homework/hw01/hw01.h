@@ -45,7 +45,6 @@ typedef struct {
     hw01_state_t next_state;
     bool alarm_enabled;     // Is the alarm enabled or disabled
     bool alarm_sounding;    // Is the alarm currently sounding
-    bool buzzer_active;     // Is the buzzer currently active
 } alarm_clock_info_t;
 
 

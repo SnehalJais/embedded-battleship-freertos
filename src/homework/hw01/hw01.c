@@ -31,20 +31,21 @@ char APP_DESCRIPTION[] = "ECE353 F25 HW01 -- Alarm Clock";
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
-bool speaker_icon_visible = false;
-uint8_t counter = 0;
-cyhal_timer_t alarm_timer;
-cyhal_timer_cfg_t alarm_timer_cfg;
+// Note: alarm variable will be used when implementing alarm functionality
+bool speaker_icon_visible = false; // Is the speaker icon currently visible
+uint8_t counter = 0;               // Counter used for blinking icons
+cyhal_timer_t alarm_timer;         // Timer used to create 100mS time base
+cyhal_timer_cfg_t alarm_timer_cfg; // Configuration structure for alarm_timer
 
-cyhal_timer_t timer_obj;
-cyhal_timer_cfg_t timer_cfg;
+cyhal_timer_t timer_obj;     // Timer used to create 1 second time base
+cyhal_timer_cfg_t timer_cfg; // Configuration structure for timer_obj
 
-alarm_clock_info_t alarm_info = {0};
+alarm_clock_info_t alarm_info = {0}; // Alarm clock information structure
 
-static uint8_t counter_msec_0100 = 0;
-static uint8_t counter_msec_1000 = 0;
-static uint8_t counter_msec_500 = 0;
-static uint8_t counter_msec_5000 = 0;
+static uint8_t counter_msec_0100 = 0; // Counter used to create 500mS and 5000mS time bases
+static uint8_t counter_msec_1000 = 0; // Counter used to create 1 second time base
+static uint8_t counter_msec_500 = 0;  // Counter used to create 500mS time base
+static uint8_t counter_msec_5000 = 0; // Counter used to create 5000mS(5 seconds) time base
 
 /*****************************************************************************/
 /* Function Definitions                                                      */
@@ -64,6 +65,7 @@ void handler_alarm_timer(void *arg, cyhal_timer_event_t event)
     // Check for 500ms interval (5 * 100ms)
     if (counter_msec_0100 >= 5)
     {
+        // Clear 100ms event flag and set 500ms event flag
         counter_msec_0100 = 0;
         ECE353_Events.tmr_msec_0500 = 1;
 
@@ -73,7 +75,7 @@ void handler_alarm_timer(void *arg, cyhal_timer_event_t event)
         // Check for 5000ms interval (10 * 500ms)
         if (counter_msec_500 >= 10)
         {
-
+            // Clear 500ms event flag and set 5000ms event flag
             ECE353_Events.tmr_msec_5000 = 1;
             counter_msec_500 = 0;
         }
@@ -81,7 +83,7 @@ void handler_alarm_timer(void *arg, cyhal_timer_event_t event)
 }
 
 /*************************************************
- * @brief
+ * @brief  Implement the state used for setting the time.
  *
  * @param alarm_info
  * @param events
@@ -91,17 +93,18 @@ void hw01_state_set_time(
     volatile ece353_events_t *events)
 {
 
-    static bool alarm_icon_visible = true;
+    static bool alarm_icon_visible = true; // Is the alarm icon currently visible
 
-    draw_speaker(LCD_COLOR_GRAY);
-    lcd_draw_time(alarm_info->time_hours, alarm_info->time_minutes);
+    draw_speaker(LCD_COLOR_GRAY);                                    // Draw speaker icon in gray when setting time
+    lcd_draw_time(alarm_info->time_hours, alarm_info->time_minutes); // Draw the current time
 
     // The alarm clock icon shall blink on/off every 500mS
     if (events->tmr_msec_0500)
     {
-        events->tmr_msec_0500 = 0;
-        alarm_icon_visible = !alarm_icon_visible;
+        events->tmr_msec_0500 = 0;                // Clear the 500ms event flag
+        alarm_icon_visible = !alarm_icon_visible; // Toggle visibility
 
+        // Draw alarm clock in c when not blinking
         if (alarm_icon_visible)
         {
             draw_alarm_clock(LCD_COLOR_YELLOW);
@@ -110,59 +113,61 @@ void hw01_state_set_time(
         {
             erase_alarm_clock();
         }
-        alarm_info->next_state = STATE_HW01_SET_TIME;
-        alarm_info->current_state = alarm_info->next_state;
+        alarm_info->next_state = STATE_HW01_SET_TIME;       // Remain in current state
+        alarm_info->current_state = alarm_info->next_state; // Update current state
         return;
     }
 
-    // Draw alarm clock in current state when not blinking
-    if (alarm_icon_visible)
-    {
-        draw_alarm_clock(LCD_COLOR_YELLOW);
-    }
-
+    // // Draw alarm clock in current state when not blinking
+    // if (alarm_icon_visible)
+    // {
+    //     draw_alarm_clock(LCD_COLOR_YELLOW);
+    // }
+    // Handle button presses
     if (events->sw1)
     {
-        events->sw1 = 0;
-        alarm_info->time_hours++;
-        if (alarm_info->time_hours > 23)
+        events->sw1 = 0;                 // Clear SW1 event flag
+        alarm_info->time_hours++;        // Increment hours
+        if (alarm_info->time_hours > 23) // Wrap around if > 23
         {
-            alarm_info->time_hours = 0;
+            alarm_info->time_hours = 0; // Reset to 0
         }
-        alarm_info->next_state = STATE_HW01_SET_TIME;
-        alarm_info->current_state = alarm_info->next_state;
+        alarm_info->next_state = STATE_HW01_SET_TIME;       // Remain in current state
+        alarm_info->current_state = alarm_info->next_state; // Update current state
         return;
     }
 
+    // Handle button presses
     if (events->sw2)
     {
-        events->sw2 = 0;
-        alarm_info->time_minutes++;
-        if (alarm_info->time_minutes >= 60)
+        events->sw2 = 0;                    // Clear SW2 event flag
+        alarm_info->time_minutes++;         // Increment minutes
+        if (alarm_info->time_minutes >= 60) // Wrap around if >= 60
         {
-            alarm_info->time_minutes = 0;
+            alarm_info->time_minutes = 0; // Reset to 0
         }
-        alarm_info->next_state = STATE_HW01_SET_TIME;
-        alarm_info->current_state = alarm_info->next_state;
+        alarm_info->next_state = STATE_HW01_SET_TIME;       // Remain in current state
+        alarm_info->current_state = alarm_info->next_state; // Update current state
         return;
     }
 
+    // Handle button presses
     if (events->sw3)
     {
-        events->sw3 = 0;
-        lcd_clear_screen(LCD_COLOR_BLACK);
-        alarm_info->next_state = STATE_HW01_SET_ALARM;
-        alarm_info->current_state = alarm_info->next_state;
+        events->sw3 = 0;                                    // Clear SW3 event flag
+        lcd_clear_screen(LCD_COLOR_BLACK);                  // Clear screen when switching states
+        alarm_info->next_state = STATE_HW01_SET_ALARM;      // Transition to SET_ALARM state
+        alarm_info->current_state = alarm_info->next_state; //  Update current state
         return;
     }
 
-    alarm_info->next_state = STATE_HW01_SET_TIME;
-    alarm_info->current_state = alarm_info->next_state;
+    alarm_info->next_state = STATE_HW01_SET_TIME;       // Remain in current state
+    alarm_info->current_state = alarm_info->next_state; // Update current state
     return;
 }
 
 /*************************************************
- * @brief
+ * @brief Implement the state used for setting the alarm.
  *
  * @param alarm_info
  * @param events
@@ -172,7 +177,7 @@ void hw01_state_set_alarm(
     volatile ece353_events_t *events)
 {
 
-    static bool speaker_icon_visible = true;
+    static bool speaker_icon_visible = true; // Is the speaker icon currently visible
 
     // Only draw alarm clock (doesn't blink) and time
     draw_alarm_clock(LCD_COLOR_GREEN);
@@ -181,8 +186,9 @@ void hw01_state_set_alarm(
     // The speaker icon shall blink on/off every 500mS
     if (events->tmr_msec_0500)
     {
-        events->tmr_msec_0500 = 0;
-        speaker_icon_visible = !speaker_icon_visible;
+        events->tmr_msec_0500 = 0;                    // Clear the 500ms event flag
+        speaker_icon_visible = !speaker_icon_visible; // Toggle visibility
+        // Draw speaker in yellow when not blinking
         if (speaker_icon_visible)
         {
             draw_speaker(LCD_COLOR_YELLOW);
@@ -191,55 +197,58 @@ void hw01_state_set_alarm(
         {
             erase_speaker();
         }
-        alarm_info->next_state = STATE_HW01_SET_ALARM;
-        alarm_info->current_state = alarm_info->next_state;
+        alarm_info->next_state = STATE_HW01_SET_ALARM;      // Remain in current state
+        alarm_info->current_state = alarm_info->next_state; // Update current state
         return;
     }
 
     // Handle button presses
     if (events->sw1)
     {
-        
-        alarm_info->alarm_hours++;
-        if (alarm_info->alarm_hours > 23)
+
+        alarm_info->alarm_hours++;        // Increment hours
+        if (alarm_info->alarm_hours > 23) // Wrap around if > 23
         {
-            alarm_info->alarm_hours = 0;
+            alarm_info->alarm_hours = 0; // Reset to 0
         }
-        events->sw1 = 0;
-        alarm_info->next_state = STATE_HW01_SET_ALARM;
-        alarm_info->current_state = alarm_info->next_state;
+        events->sw1 = 0;                                    // Clear SW1 event flag
+        alarm_info->next_state = STATE_HW01_SET_ALARM;      //  Remain in current state
+        alarm_info->current_state = alarm_info->next_state; // Update current state
         return;
     }
+
+    // Handle button presses
     if (events->sw2)
     {
-        
-        alarm_info->alarm_minutes++;
-        if (alarm_info->alarm_minutes > 59)
+
+        alarm_info->alarm_minutes++;        // Increment minutes
+        if (alarm_info->alarm_minutes > 59) // Wrap around if > 59
         {
-            alarm_info->alarm_minutes = 0;
+            alarm_info->alarm_minutes = 0; // Reset to 0
         }
-        events->sw2 = 0;
-        alarm_info->next_state = STATE_HW01_SET_ALARM;
-        alarm_info->current_state = alarm_info->next_state;
+        events->sw2 = 0;                                    // Clear SW2 event flag
+        alarm_info->next_state = STATE_HW01_SET_ALARM;      // Remain in current state
+        alarm_info->current_state = alarm_info->next_state; // Update current state
         return;
     }
 
+    // Handle button presses
     if (events->sw3)
     {
-        events->sw3 = 0;
-        lcd_clear_screen(LCD_COLOR_BLACK);
-        alarm_info->next_state = STATE_HW01_RUNNING;
-        alarm_info->current_state = alarm_info->next_state;
+        events->sw3 = 0;                                    // Clear SW3 event flag
+        lcd_clear_screen(LCD_COLOR_BLACK);                  // Clear screen when switching states
+        alarm_info->next_state = STATE_HW01_RUNNING;        // Transition to RUNNING state
+        alarm_info->current_state = alarm_info->next_state; //  Update current state
         return;
     }
 
-    alarm_info->next_state = STATE_HW01_SET_ALARM;
-    alarm_info->current_state = alarm_info->next_state;
+    alarm_info->next_state = STATE_HW01_SET_ALARM;      // Remain in current state
+    alarm_info->current_state = alarm_info->next_state; // Update current state
     return;
 }
 
 /*************************************************
- * @brief
+ * @brief Implement the state used for running the alarm clock.
  *
  * @param alarm_info
  * @param events
@@ -249,8 +258,7 @@ void hw01_state_running(
     volatile ece353_events_t *events)
 {
 
-
-    static bool alarm_icon_visible = true;
+    static bool alarm_icon_visible = true; // Is the alarm icon currently visible
 
     // make alarm clock green in running state
     draw_alarm_clock(LCD_COLOR_GREEN);
@@ -265,42 +273,44 @@ void hw01_state_running(
         draw_speaker(LCD_COLOR_GRAY);
     }
 
-    lcd_draw_time(alarm_info->time_hours, alarm_info->time_minutes);
-    // if sw1 is pressed, disable enable alarm setting state
+    lcd_draw_time(alarm_info->time_hours, alarm_info->time_minutes); // Draw the current time
 
+    // if sw1 is pressed, disable enable alarm setting state
     if (events->sw1)
     {
-
         events->sw1 = 0;
-        alarm_info->alarm_enabled = !alarm_info->alarm_enabled;
-        // if (alarm_info->alarm_enabled)
-        // {
-        //    draw_speaker(LCD_COLOR_GREEN);
-        // }
+        alarm_info->alarm_enabled = !alarm_info->alarm_enabled; // Toggle alarm enabled status
+        // Draw speaker based on alarm_enabled status
+        if (alarm_info->alarm_enabled)
+        {
+            draw_speaker(LCD_COLOR_GREEN);
+        }
 
-        // else
-        // {
-        //     draw_speaker(LCD_COLOR_GRAY);
-        // }
+        else
+        {
+            draw_speaker(LCD_COLOR_GRAY);
+        }
 
-        // return;
-    }
-
-    if (alarm_info->alarm_enabled && (alarm_info->time_hours == alarm_info->alarm_hours) && (alarm_info->time_minutes == alarm_info->alarm_minutes))
-    {
-
-        alarm_info->next_state = STATE_HW01_ALARM_TRIGGERED;
-        alarm_info->alarm_sounding = true; // Set flag to start buzzer
-        alarm_info->current_state = alarm_info->next_state;
         return;
     }
 
+    // Check if alarm should trigger
+    if (alarm_info->alarm_enabled && (alarm_info->time_hours == alarm_info->alarm_hours) && (alarm_info->time_minutes == alarm_info->alarm_minutes))
+    {
+
+        alarm_info->next_state = STATE_HW01_ALARM_TRIGGERED; //  Transition to ALARM_TRIGGERED state
+        alarm_info->alarm_sounding = true;                   // Set flag to start buzzer
+        alarm_info->current_state = alarm_info->next_state;  // Update current state
+        return;
+    }
+
+    // Handle button presses
     if (events->sw3)
     {
-        events->sw3 = 0;
-        lcd_clear_screen(LCD_COLOR_BLACK);
-        alarm_info->next_state = STATE_HW01_SET_TIME;
-        alarm_info->current_state = alarm_info->next_state;
+        events->sw3 = 0;                                    // Clear SW3 event flag
+        lcd_clear_screen(LCD_COLOR_BLACK);                  // Clear screen when switching states
+        alarm_info->next_state = STATE_HW01_SET_TIME;       // Transition to SET_TIME state
+        alarm_info->current_state = alarm_info->next_state; //  Update current state
         return;
     }
 
@@ -309,16 +319,18 @@ void hw01_state_running(
     {
         // increment time every 100ms
         alarm_info->time_minutes++;
+        // Wrap around if >= 60
         if (alarm_info->time_minutes >= 60)
         {
             alarm_info->time_minutes = 0;
+            // Increment hours and wrap around if >= 24
             alarm_info->time_hours++;
             if (alarm_info->time_hours >= 24)
             {
                 alarm_info->time_hours = 0;
             }
         }
-        events->tmr_msec_0100 = 0;
+        events->tmr_msec_0100 = 0; // Clear the 100ms event flag
 
         return;
     }
@@ -327,7 +339,7 @@ void hw01_state_running(
 }
 
 /*************************************************
- * @brief
+ * @brief Implement the state used when the alarm is triggered.
  *
  * @param alarm_info
  * @param events
@@ -339,45 +351,48 @@ void hw01_state_alarm_triggered(
     // Run-once setup when we first enter this state
     static bool first_entry = true;
 
+    // Static variable to track speaker icon visibility
     if (first_entry)
     {
         first_entry = false;
         alarm_info->alarm_sounding = true; // ensure we're sounding
-        buzzer_on();
+        buzzer_on();                       // Start the buzzer
     }
-    // new
+
     //  Keep buzzer on while alarm is sounding
     if (alarm_info->alarm_sounding)
     {
         buzzer_on();
     }
-    // new
 
     // Draw the display (only once per entry, not in the loop)
     lcd_draw_time(alarm_info->alarm_hours, alarm_info->alarm_minutes);
-    draw_alarm_clock(LCD_COLOR_GREEN);
+    draw_alarm_clock(LCD_COLOR_GREEN); // Draw alarm clock in green when alarm is triggered
+    // Draw speaker in red when alarm is triggered
     if (events->tmr_msec_0100)
     {
-        counter++;
-        events->tmr_msec_0100 = 0;
+        counter++;                 // Increment counter every 100ms
+        events->tmr_msec_0100 = 0; // Clear the 100ms event flag
 
         // Continue incrementing current time even during alarm start
         alarm_info->time_minutes++;
+        // Wrap around if >= 60
         if (alarm_info->time_minutes >= 60)
         {
             alarm_info->time_minutes = 0;
+            // Increment hours and wrap around if >= 24
             alarm_info->time_hours++;
             if (alarm_info->time_hours >= 24)
             {
                 alarm_info->time_hours = 0;
             }
         }
-        // end
 
         // Update the time display
         lcd_draw_time(alarm_info->time_hours, alarm_info->time_minutes);
 
-        speaker_icon_visible = !speaker_icon_visible;
+        speaker_icon_visible = !speaker_icon_visible; // Toggle visibility
+                                                      // Draw speaker in red when alarm is triggered
         if (speaker_icon_visible)
         {
             draw_speaker(LCD_COLOR_RED);
@@ -386,23 +401,26 @@ void hw01_state_alarm_triggered(
         {
             erase_speaker();
         }
+        // After 5 seconds or if SW2 is pressed, stop the alarm
         if (counter == 50 || events->sw2)
         {
-            counter = 0;
-            buzzer_off();
-            alarm_info->alarm_enabled = false;
-            alarm_info->alarm_sounding = false;
-            alarm_info->alarm_minutes = 0;
-            alarm_info->alarm_hours = 0;
-            alarm_info->next_state = STATE_HW01_RUNNING;
-            alarm_info->current_state = alarm_info->next_state;
+            counter = 0;                                        // Reset counter
+            buzzer_off();                                       // Stop the buzzer
+            alarm_info->alarm_enabled = false;                  // Disable the alarm
+            alarm_info->alarm_sounding = false;                 // Stop sounding
+            alarm_info->alarm_minutes = 0;                      // Reset alarm time to prevent immediate re-triggering
+            alarm_info->alarm_hours = 0;                        // Reset alarm hours
+            alarm_info->next_state = STATE_HW01_RUNNING;        // Transition to RUNNING state
+            alarm_info->current_state = alarm_info->next_state; //  Update current state
         }
 
         // Increment alarm time to prevent immediate re-triggering
         alarm_info->alarm_minutes++;
+        // Wrap around if >= 60
         if (alarm_info->alarm_minutes >= 60)
         {
             alarm_info->alarm_minutes = 0;
+            // Increment hours and wrap around if >= 24
             alarm_info->alarm_hours++;
             if (alarm_info->alarm_hours >= 24)
             {
@@ -415,7 +433,7 @@ void hw01_state_alarm_triggered(
 }
 
 /*************************************************
- * @brief
+ * @brief Implement the state used when an error is detected.
  *
  * @param alarm_info
  * @param events
@@ -440,7 +458,7 @@ void hw01_state_error(
  ************************************************/
 void app_init_hw(void)
 {
-    cy_rslt_t rslt;
+    cy_rslt_t rslt; // Variable used to capture return values
 
     console_init();
     printf("\x1b[2J\x1b[;H");
@@ -473,6 +491,7 @@ void app_init_hw(void)
         printf("Button GPIO init successful\r\n");
     }
 
+    // Initialize button timer
     rslt = buttons_init_timer();
     if (rslt != CY_RSLT_SUCCESS)
     {
@@ -503,7 +522,7 @@ void app_init_hw(void)
         printf("Timer initialized successfully!\r\n");
     }
 
-    // //initialize cyhal_timer_start
+    // initialize cyhal_timer_start
     cyhal_timer_start(&timer_obj);
 
     // Clear LCD screen to start with clean display
@@ -522,45 +541,45 @@ void app_init_hw(void)
 void app_main(void)
 {
 
-   
-
     while (1)
     {
-       
 
         // Process current state
         switch (alarm_info.current_state)
         {
-
+            // Initial state
         case STATE_HW01_INIT:
-            printf("Alarm system initialized. Transitioning to Set Time state.\r\n");
-            lcd_clear_screen(LCD_COLOR_BLACK);
-            alarm_info.next_state = STATE_HW01_SET_TIME;
-            alarm_info.current_state = alarm_info.next_state;
+            lcd_clear_screen(LCD_COLOR_BLACK);                // Clear screen when switching states
+            alarm_info.next_state = STATE_HW01_SET_TIME;      // Transition to SET_TIME state
+            alarm_info.current_state = alarm_info.next_state; // Update current state
             break;
 
+            // State for setting the time
         case STATE_HW01_SET_TIME:
-            hw01_state_set_time(&alarm_info, &ECE353_Events);
+            hw01_state_set_time(&alarm_info, &ECE353_Events); // Handle SET_TIME state
             break;
 
+            // State for setting the alarm
         case STATE_HW01_SET_ALARM:
-            hw01_state_set_alarm(&alarm_info, &ECE353_Events);
+            hw01_state_set_alarm(&alarm_info, &ECE353_Events); // Handle SET_ALARM state
             break;
 
+            // State for running the alarm clock
         case STATE_HW01_RUNNING:
-            hw01_state_running(&alarm_info, &ECE353_Events);
+            hw01_state_running(&alarm_info, &ECE353_Events); // Handle RUNNING state
             break;
 
+            // State for when the alarm is triggered
         case STATE_HW01_ALARM_TRIGGERED:
-            hw01_state_alarm_triggered(&alarm_info, &ECE353_Events);
+            hw01_state_alarm_triggered(&alarm_info, &ECE353_Events); // Handle ALARM_TRIGGERED state
             break;
 
         case STATE_HW01_ERROR:
-            hw01_state_error(&alarm_info, &ECE353_Events);
+            hw01_state_error(&alarm_info, &ECE353_Events); // Handle ERROR state
             break;
 
         default:
-            alarm_info.current_state = STATE_HW01_ERROR;
+            alarm_info.current_state = STATE_HW01_ERROR; // Transition to ERROR state
             break;
         }
     }
