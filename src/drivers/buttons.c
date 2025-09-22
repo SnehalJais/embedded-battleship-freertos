@@ -10,7 +10,9 @@
  */
 
  #include "buttons.h"
-
+#include "cyhal_timer.h"
+#include "ece353-events.h"
+#include "ece353-pins.h"
 /* HAL GPIO objects for the 3 buttons */
 cyhal_gpio_t button_sw1;
 cyhal_gpio_t button_sw2;
@@ -21,7 +23,7 @@ cyhal_gpio_t button_sw3;
  * 
  * @return cy_rslt_t Returns CY_RSLT_SUCCESS if all buttons were initialized successfully
  */
-cy_rslt_t buttons_init(void)
+cy_rslt_t buttons_init_gpio(void)
 {
     cy_rslt_t rslt;
 
@@ -119,4 +121,46 @@ button_state_t buttons_get_state(ece353_button_t button)
             break; // Should not reach here
     }
     return state;
+}
+cyhal_timer_t button_timer;
+cyhal_timer_cfg_t button_timer_cfg;
+
+static void button_timer_handler(void *arg, cyhal_timer_event_t event)
+{
+    static uint8_t button_counts[3] = {[0]=0, [1]=0, [2]=0};
+    uint8_t sw1 = PORT_BUTTON_SW1->IN & MASK_BUTTON_PIN_SW1;
+    uint8_t sw2 = PORT_BUTTON_SW2->IN & MASK_BUTTON_PIN_SW2;
+    uint8_t sw3 = PORT_BUTTON_SW3->IN & MASK_BUTTON_PIN_SW3;
+    if(sw1 == 0){
+        button_counts[0]++;
+        if(button_counts[0] == 5){
+            ECE353_Events.sw1 = 1;
+        }
+    }
+    else{
+        button_counts[0] = 0;
+    }
+    if(sw2 == 0){
+        button_counts[1]++;
+        if(button_counts[1] == 5){
+            ECE353_Events.sw2 = 1;
+        }
+    }
+    else{
+        button_counts[1] = 0;
+    }
+    if(sw3 == 0){
+        button_counts[2]++;
+        if(button_counts[2] == 5){
+            ECE353_Events.sw3 = 1;
+        }
+    }
+    else{
+        button_counts[2] = 0;
+    }
+
+}
+
+cy_rslt_t buttons_init_timer(void){
+    return timer_init(&button_timer,&button_timer_cfg,500000,button_timer_handler);
 }
