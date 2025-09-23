@@ -514,7 +514,7 @@ void app_init_hw(void)
 
     // Initialize timer for 100ms intervals
     printf("Initializing timer...\r\n");
-    rslt = timer_init(&timer_obj, &timer_cfg, 10000000, handler_alarm_timer); // 100ms = 100MHz/1M
+    rslt = timer_init(&timer_obj, &timer_cfg, 10000000, handler_alarm_timer); // 100ms = 100MHz/10M
     if (rslt != CY_RSLT_SUCCESS)
     {
         printf("Timer init failed: %lx\r\n", rslt);
