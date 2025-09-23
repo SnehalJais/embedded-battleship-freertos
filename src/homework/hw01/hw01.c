@@ -405,6 +405,8 @@ void hw01_state_alarm_triggered(
         if (counter == 50 || events->sw2)
         {
             counter = 0;                                        // Reset counter
+            events->sw2 = 0;                                    // Clear SW2 event flag
+            first_entry = true;                                 // Reset for next entry
             buzzer_off();                                       // Stop the buzzer
             alarm_info->alarm_enabled = false;                  // Disable the alarm
             alarm_info->alarm_sounding = false;                 // Stop sounding
