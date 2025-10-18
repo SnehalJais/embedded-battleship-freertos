@@ -10,6 +10,7 @@
  */
 
  #include "task_buttons.h"
+ #include "task_console.h"
 
  #ifdef ECE353_FREERTOS
  /**
@@ -27,26 +28,99 @@
  void task_buttons(void *arg)
  {
     (void)arg; // Unused parameter
-
+    
+    // Debounce counters for each button (need 2 consecutive samples for 30ms debounce)
+    uint32_t sw1_count = 0;
+    uint32_t sw2_count = 0;
+    uint32_t sw3_count = 0;
+    EventGroupHandle_t ECE353_RTOS_Events;
+    
+    // Previous button states for edge detection (true = not pressed)
+    bool prev_sw1_pressed = false;
+    bool prev_sw2_pressed = false;
+    bool prev_sw3_pressed = false;
+    
     while (1)
     {
-        // Monitor button SW1
+        // Current button states (0 = pressed)
+        bool sw1_pressed = ((PORT_BUTTON_SW1->IN & MASK_BUTTON_PIN_SW1) == 0);
+        bool sw2_pressed = ((PORT_BUTTON_SW2->IN & MASK_BUTTON_PIN_SW2) == 0);
+        bool sw3_pressed = ((PORT_BUTTON_SW3->IN & MASK_BUTTON_PIN_SW3) == 0);
         
+        // Monitor button SW1 with debouncing
+        if (sw1_pressed)
+        {
+            sw1_count++;
+            if (sw1_count >= 2 && !prev_sw1_pressed) // Falling edge after debounce
+            {
+                // Set the SW1_PRESSED event in the event group
+                task_console_printf("SW1 Pressed!\r\n");
+                //xEventGroupSetBits(ECE353_RTOS_Events, SW1_PRESSED);
+                vTaskDelay(pdMS_TO_TICKS(30)); // Delay for debounce
+                prev_sw1_pressed = true;
+            }
+        }
+        else 
+        {
+            sw1_count = 0;
+            prev_sw1_pressed = false;
+        }
 
-        // Monitor button SW2
+        // Monitor button SW2 with debouncing
+        if (sw2_pressed)
+        {   
+            sw2_count++;
+            if (sw2_count >= 2 && !prev_sw2_pressed) // Falling edge after debounce
+            {
+                // Set the SW2_PRESSED event in the event group
+                task_console_printf("SW2 Pressed!\r\n");
+                //xEventGroupSetBits(ECE353_RTOS_Events, SW2_PRESSED);
+                
+                vTaskDelay(pdMS_TO_TICKS(30)); // Delay for debounce
+                prev_sw2_pressed = true;
+            }
+        }
+        else 
+        {
+            sw2_count = 0;
+            prev_sw2_pressed = false;
+        }
 
+        // Monitor button SW3 with debouncing
+        if (sw3_pressed)
+        {
+            sw3_count++;
+            if (sw3_count >= 2 && !prev_sw3_pressed) // Falling edge after debounce
+            {
+                // Set the SW3_PRESSED event in the event group
+                task_console_printf("SW3 Pressed!\r\n");
+                //xEventGroupSetBits(ECE353_RTOS_Events, SW3_PRESSED);
+                
+                vTaskDelay(pdMS_TO_TICKS(30)); // Delay for debounce
+                prev_sw3_pressed = true;
+            }
+        }
+        else 
+        {
+            sw3_count = 0;
+            prev_sw3_pressed = false;
+        }
 
-        // Monitor button SW3
-  
-
-        // Debounce delay
+        // Sample every 15ms (2 samples = 30ms debounce time)
+        vTaskDelay(pdMS_TO_TICKS(15));
     }
- }
-
- /* Button Task Initialization */
+ } /* Button Task Initialization */
 bool task_button_init(void){
 
     BaseType_t result;
+    cy_rslt_t rslt;
+
+    //initialize the buttons
+    rslt = buttons_init_gpio();
+    if(rslt != CY_RSLT_SUCCESS)
+    {
+        return false;
+    }
 
     // Create the button task
     result = xTaskCreate(

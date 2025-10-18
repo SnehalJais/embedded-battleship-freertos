@@ -28,7 +28,7 @@
 #include <stdio.h>
 
 /* Uncomment the line below to enable FreeRTOS in your applications*/
-//#define ECE353_FREERTOS
+#define ECE353_FREERTOS
 
 #if defined(ECE353_FREERTOS)
 /* FreeRTOS Includes */
@@ -60,8 +60,8 @@
 //#define ICE09       /* In-Class Exercise -- FreeRTOS UART Rx IRQ + Buffering  */
 //#define ICE10       /* In-Class Exercise -- FreeRTOS UART Tx IRQ + Buffering  */
 
-#define HW01
-//#define HW02
+//#define HW01
+#define HW02
 //#define HW03
 
 extern char NAME[];

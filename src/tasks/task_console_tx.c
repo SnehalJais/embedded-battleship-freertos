@@ -1,14 +1,14 @@
 /**
  * @file task_console.c
  * @author Joe Krachey (jkrachey@wisc.edu)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-08-15
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
- #include "main.h"
+#include "main.h"
 
 #ifdef ECE353_FREERTOS
 #include "drivers.h"
@@ -18,7 +18,7 @@
  * @brief
  * This file contains the implementation of the console transmit (Tx) task.
  * The task is responsible for sending characters to the UART.
- * 
+ *
  * Tasks can print messages by sending the string to task_console_tx() using
  * a FreeRTOS queue.
  *
@@ -30,42 +30,93 @@
 /* ADD CODE*/
 /* Global Variables */
 
+// allocate space for the transmit queue
+QueueHandle_t xQueue_Console_Tx;
+TaskHandle_t TaskHandle_Console_Tx;
+// allocate space for the circular buffer
+circular_buffer_t *circular_buffer_tx;
+
 
 /**
- * @brief 
+ * @brief
  * This task is used to transmit characters to the UART
- * @param param 
+ * @param param
  */
 void task_console_tx(void *param)
 {
     (void)param; // Unused parameter
-    console_buffer_t tx_msg;
+    console_buffer_t *tx_msg;
 
     while (1)
     {
         /* ADD CODE */
+
+        // wait for console_buffer_t messages from the queue
+        xQueueReceive(xQueue_Console_Tx, &tx_msg, portMAX_DELAY);
+
+        // A for loop that examines the message and adds each byte to the circular buffer
+        for (int i = 0; tx_msg->data[i] != '\0'; i++)
+        {
+            // if the circular buffer is full, vTaskDelay(5)
+            while (circular_buffer_get_num_bytes(circular_buffer_tx) == circular_buffer_tx->max_size)
+            {
+                vTaskDelay(5);
+            }
+
+            taskENTER_CRITICAL();
+            // add the next byte to the CB.
+            circular_buffer_add(circular_buffer_tx, tx_msg->data[i]);
+
+            taskEXIT_CRITICAL();
+        }
+
+        // enable the transmit empty interrupt
+        cyhal_uart_enable_event(&cy_retarget_io_uart_obj, CYHAL_UART_IRQ_TX_EMPTY, INT_PRIORITY_CONSOLE, true);
+
+        // free the data that was sent from console_buffer_t
+        vPortFree(tx_msg->data);
+        vPortFree(tx_msg);
     }
 }
 
 /**
- * @brief 
- * This function initializes the resources for the console Tx task. 
+ * @brief
+ * This function initializes the resources for the console Tx task.
  * @return true  if initialization is successful
  * @return false if initialization fails
- * @return false 
+ * @return false
  */
 bool task_console_resources_init_tx(void)
 {
-    BaseType_t rslt;
+    BaseType_t rslt = pdPASS;
 
     /* ADD CODE */
-
-    if (rslt != pdPASS)
+    // initialize the TX FREERTOS queue
+    xQueue_Console_Tx = xQueueCreate(10, sizeof(console_buffer_t *));
+    if (xQueue_Console_Tx == NULL)
     {
-        return false; // Initialization failed
+        rslt = pdFAIL;
     }
 
-    return true; // Resources initialized successfully
+    //init the circular buffer
+    circular_buffer_tx = circular_buffer_init(CONSOLE_BUFFER_SIZE);
+    if (circular_buffer_tx == NULL)
+    {
+        rslt = pdFAIL;
+    }
+
+    // Create FreeRTOS Tx Task (gatekeeper)
+    if (rslt == pdPASS)
+    {
+        rslt = xTaskCreate(task_console_tx,
+                           "Console_Tx",
+                           256,
+                           NULL,
+                           INT_PRIORITY_CONSOLE, 
+                           &TaskHandle_Console_Tx);
+    }
+
+    return (rslt == pdPASS); // Resources initialized successfully
 }
 
 /**
@@ -73,7 +124,7 @@ bool task_console_resources_init_tx(void)
  * This function sends formatted messages to task_console_tx. It acts as a wrapper around the FreeRTOS queue
  * to send messages so other tasks can use it easily.
  *
- * Example usage: 
+ * Example usage:
  * task_console_printf("Send Message");
  * task_console_printf("Formatted number: %d", 42);
  *
@@ -82,7 +133,7 @@ bool task_console_resources_init_tx(void)
  */
 void task_console_printf(char *str_ptr, ...)
 {
-    console_buffer_t console_buffer;
+    console_buffer_t *console_buffer;
     char *message_buffer;
     char *task_name;
     uint32_t length = 0;
@@ -91,12 +142,12 @@ void task_console_printf(char *str_ptr, ...)
     /* ADD CODE */
     /* Allocate the message buffer */
 
-    if (message_buffer)
+    if (message_buffer && console_buffer)
     {
         va_start(args, str_ptr);
         task_name = pcTaskGetName(xTaskGetCurrentTaskHandle());
         length = snprintf(message_buffer, CONSOLE_MAX_MESSAGE_LENGTH, "%-16s : ",
-                              task_name);
+                          task_name);
 
         vsnprintf((message_buffer + length), (CONSOLE_MAX_MESSAGE_LENGTH - length),
                   str_ptr, args);
@@ -105,14 +156,19 @@ void task_console_printf(char *str_ptr, ...)
 
         /* ADD CODE */
         /* Initialize the console buffer */
+        console_buffer->data = message_buffer;
+        console_buffer->index = strlen(message_buffer);
 
         /* ADD CODE */
         /* The receiver task is responsible to free the memory from here on */
+        xQueueSendToBack(xQueue_Console_Tx, &console_buffer, portMAX_DELAY);
 
     }
     else
     {
         /* pvPortMalloc failed. Handle error */
+        if (message_buffer) vPortFree(message_buffer);
+        if (console_buffer) vPortFree(console_buffer);
         CY_ASSERT(0); // Halt the processor
     }
 }

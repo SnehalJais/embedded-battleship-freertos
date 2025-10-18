@@ -18,10 +18,11 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#define JOYSTICK_THRESH_X_LEFT_2P475V   0x0000
-#define JOYSTICK_THRESH_X_RIGHT_0P825V  0x0000
-#define JOYSTICK_THRESH_Y_UP_2P475V     0x0000
-#define JOYSTICK_THRESH_Y_DOWN_0P825V   0x0000
+
+#define JOYSTICK_THRESH_X_LEFT_2P475V   0xC000
+#define JOYSTICK_THRESH_X_RIGHT_0P825V  0x4000
+#define JOYSTICK_THRESH_Y_UP_2P475V     0xC000
+#define JOYSTICK_THRESH_Y_DOWN_0P825V   0x4000
 
 #define JOYSTICK_THRESH_X_LEFT   JOYSTICK_THRESH_X_LEFT_2P475V 
 #define JOYSTICK_THRESH_X_RIGHT  JOYSTICK_THRESH_X_RIGHT_0P825V
@@ -43,8 +44,11 @@ typedef enum {
 }joystick_position_t;
 
 /* Public Global Variables */
+// #define JOYSTICK_THRESH_X_LEFT_2P475V   0xC000
+// #define JOYSTICK_THRESH_X_RIGHT_0P825V  0x4000
+// #define JOYSTICK_THRESH_Y_UP_2P475V     0xC000
+// #define JOYSTICK_THRESH_Y_DOWN_0P825V   0x4000
 
-/* Public API */
 
 /** Initialize the ADC channels connected to the Joystick
  *

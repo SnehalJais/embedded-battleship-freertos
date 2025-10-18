@@ -85,7 +85,7 @@ VERBOSE=
 # ... then code in directories named COMPONENT_foo and COMPONENT_bar will be
 # added to the build
 #
-COMPONENTS=
+COMPONENTS= FREERTOS
 
 # Like COMPONENTS, but disable optional code that was enabled by default.
 DISABLE_COMPONENTS=
@@ -104,7 +104,7 @@ INCLUDES=
 DEFINES=
 
 # Select softfloat or hardfp floating point. Default is softfloat.
-VFP_SELECT=softfloat
+VFP_SELECT=hardfp
 
 # Additional / custom C compiler flags.
 #

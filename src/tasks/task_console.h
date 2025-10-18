@@ -24,6 +24,7 @@
 #define INT_PRIORITY_CONSOLE 5 // Priority for console tasks and events
 #define CONSOLE_MAX_MESSAGE_LENGTH 64 
 #define CONSOLE_QUEUE_LENGTH 10
+#define CONSOLE_BUFFER_SIZE 64
 
 // Data structure to hold console message data when using 
 // FreeRTOS and double buffering

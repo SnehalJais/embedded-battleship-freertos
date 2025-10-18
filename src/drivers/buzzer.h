@@ -17,7 +17,7 @@
 #include "cybsp.h"
 #include "ece353-pins.h"
 
-cy_rslt_t buzzer_init(float duty_cycle, uint32_t frequency);
+cy_rslt_t buzzer_init(float duty, uint32_t frequency);
 void buzzer_on(void);
 void buzzer_off(void);
 

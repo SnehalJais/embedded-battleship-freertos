@@ -21,19 +21,19 @@ cy_rslt_t leds_init(void)
     cy_rslt_t rslt;
 
     /* Initialize RED LED */
-    rslt = cyhal_gpio_init(PIN_LED_RED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+    rslt = cyhal_gpio_init(PIN_LED_RED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 0);
     if (rslt != CY_RSLT_SUCCESS) {
         return rslt;
     }
 
     /* Initialize GREEN LED */
-    rslt = cyhal_gpio_init(PIN_LED_GREEN, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+    rslt = cyhal_gpio_init(PIN_LED_GREEN, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 0);
     if (rslt != CY_RSLT_SUCCESS) {
         return rslt;
     }
 
     /* Initialize BLUE LED */
-    rslt = cyhal_gpio_init(PIN_LED_BLUE, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 1);
+    rslt = cyhal_gpio_init(PIN_LED_BLUE, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, 0);
     return rslt;
 }
 

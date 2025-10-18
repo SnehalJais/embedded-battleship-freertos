@@ -23,6 +23,8 @@ char APP_DESCRIPTION[] = "ECE353: ICE 06 - FreeRTOS Queues";
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
+extern QueueHandle_t Queue_position;
+
 /* Create a lookup table to print out the joystick positions*/
 const char *Joystick_Pos_Strings[] = {
     [JOYSTICK_POS_CENTER] = "Center",
@@ -66,6 +68,18 @@ void app_init_hw(void)
 void task_print_directions(void *arg)
 {
 
+    //wait indefinitedly for messages from the joystick task
+    joystick_position_t position;
+    (void)arg; // Unused parameter
+    while(1)
+    {
+        //block until a message is received
+        if (xQueueReceive(Queue_position, &position, portMAX_DELAY) == pdTRUE)
+        {
+            printf("Joystick Position Changed: %s\n\r", Joystick_Pos_Strings[position]);
+        }
+    }
+
 }
 
 /*****************************************************************************/
@@ -78,8 +92,13 @@ void task_print_directions(void *arg)
 void app_main(void)
 {
     /* Initialize joystick resources */
+    joystick_init();
     
     /* Register the tasks with FreeRTOS*/
+    task_joystick_init();
+    
+    /* Create the print directions task */
+    xTaskCreate(task_print_directions, "Print Directions", 3*configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
 
     /* Start the scheduler*/
     vTaskStartScheduler();

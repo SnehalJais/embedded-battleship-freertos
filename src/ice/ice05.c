@@ -1,12 +1,12 @@
 /**
  * @file ex03.c
  * @author Joe Krachey (jkrachey@wisc.edu)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-06-30
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "main.h"
 
@@ -23,7 +23,8 @@ char APP_DESCRIPTION[] = "ECE353: ICE 05 - FreeRTOS Event Groups";
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
-// ADD CODE for Event Group Handle
+EventGroupHandle_t ECE353_RTOS_Events;
+
 
 /*****************************************************************************/
 /* Function Declarations                                                     */
@@ -55,15 +56,7 @@ void task_button_sw2(void *arg)
     }
 }
 
-void task_buzzer(void *arg)
-{
-    (void)arg; // Unused parameter
-    
-    while (1)
-    {
-        // ADD CODE to handle buzzer events
-    }
-}
+
 
 /**
  * @brief
@@ -83,10 +76,11 @@ void app_init_hw(void)
     printf("**************************************************\n\r");
 
     /* ADD CODE Initialize the buttons */
+    buttons_init_gpio();
 
     /* ADD CODE Initialize the buzzer */
+    buzzer_init(50, 2000);
 }
-
 /*****************************************************************************/
 /* Application Code                                                          */
 /*****************************************************************************/
@@ -97,10 +91,22 @@ void app_init_hw(void)
 void app_main(void)
 {
     /* ADD CODE Create the event group */
+    ECE353_RTOS_Events = xEventGroupCreate();
 
     /* ADD CODE Register the tasks with FreeRTOS*/
-    
+    task_button_init();
+
+    xTaskCreate(
+        task_buzzer,              // Function used to implement a task
+        "Buzzer Task",            // Task name
+        configMINIMAL_STACK_SIZE, // Stack size
+        NULL,                     // Not using any params so pass NULL
+        tskIDLE_PRIORITY + 1,     // Task priority
+        NULL                      // Task handle
+    );
+
     /* ADD CODE Start the scheduler*/
+    vTaskStartScheduler();
 
     /* Will never reach this loop once the scheduler starts */
     while (1)

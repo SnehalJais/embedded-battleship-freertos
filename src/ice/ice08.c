@@ -37,11 +37,50 @@ char APP_DESCRIPTION[] = "ECE353: ICE 08 - FreeRTOS LCD Gatekeeper";
 void task_system_control(void *pvParameters)
 {
     (void)pvParameters; // Unused parameter
-
+    lcd_msg_t lcd_msg;
+    
+    // Clear the LCD screen by sending message to gatekeeper
+    lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
+    xQueueSend(xQueue_LCD, &lcd_msg, portMAX_DELAY);
+    
+    // Draw the game board
+    lcd_msg.command = LCD_CMD_DRAW_BOARD;
+    xQueueSend(xQueue_LCD, &lcd_msg, portMAX_DELAY);
+    
+    // Initialize cursor position
+    uint8_t cursor_row = 0;
+    uint8_t cursor_col = 0;
+    
     while(1)
     {
+        // Send cursor draw command to gatekeeper
+        lcd_msg.command = LCD_CMD_DRAW_CURSOR;
+        lcd_msg.payload.battleship.row = cursor_row;
+        lcd_msg.payload.battleship.col = cursor_col;
+        lcd_msg.payload.battleship.border_color = BATTLESHIP_CURSOR_COLOR;
+        lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
+        xQueueSend(xQueue_LCD, &lcd_msg, portMAX_DELAY);
+        
         // Sleep for 100 ms
         vTaskDelay(pdMS_TO_TICKS(100));
+        
+        // Clear current cursor by redrawing original blue rectangle
+        lcd_msg.command = LCD_CMD_DRAW_CURSOR;
+        lcd_msg.payload.battleship.row = cursor_row;
+        lcd_msg.payload.battleship.col = cursor_col;
+        lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
+        lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
+        xQueueSend(xQueue_LCD, &lcd_msg, portMAX_DELAY);
+        
+        // Update cursor position (move left to right, wrap to next row)
+        cursor_col++;
+        if (cursor_col >= 10) {
+            cursor_col = 0;
+            cursor_row++;
+            if (cursor_row >= 10) {
+                cursor_row = 0; // Restart from beginning
+            }
+        }
     }
 }
 
@@ -69,6 +108,15 @@ void app_init_hw(void)
         for(int i = 0; i < 100000; i++) {}
         CY_ASSERT(0);
     }
+
+    rslt = buttons_init_gpio();
+    if (rslt != CY_RSLT_SUCCESS)
+    {
+        printf("Buttons initialization failed!\n\r");
+        for(int i = 0; i < 100000; i++) {}
+        CY_ASSERT(0);
+    }
+
 }
 
 /*****************************************************************************/
@@ -83,7 +131,7 @@ void app_main(void)
     
     /* Register the tasks with FreeRTOS*/
 
-    ECE353_RTOS_Events = xEventGroupCreate();
+    EventGroupHandle_t ECE353_RTOS_Events = xEventGroupCreate();
 
     /* Initialize LCD resources */
     if (!task_lcd_init())
@@ -91,6 +139,13 @@ void app_main(void)
         printf("Failed to initialize joystick task\n\r");
         for(int i = 0; i < 100000; i++) {}
        CY_ASSERT(0); // If the task initialization fails, assert
+    }
+
+    if(!task_button_init())
+    {
+        printf("Failed to initialize button task\n\r");
+        for(int i = 0; i < 100000; i++) {}
+        CY_ASSERT(0); // If the task initialization fails, assert
     }
 
     /* Start the buttons task*/

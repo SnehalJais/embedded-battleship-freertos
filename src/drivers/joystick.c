@@ -73,6 +73,7 @@ cy_rslt_t joystick_init(void)
         return rslt; // If the initialization fails, return the error code
     }
 
+    return CY_RSLT_SUCCESS; // Return success if all initializations completed
 }
 
 /** Read X direction of Joystick 
@@ -82,6 +83,7 @@ cy_rslt_t joystick_init(void)
 uint16_t  joystick_read_x(void)
 {
     /* ADD CODE */
+    return cyhal_adc_read_u16(&joystick_adc_chan_x_obj);
 
 }
 
@@ -92,6 +94,7 @@ uint16_t  joystick_read_x(void)
 uint16_t  joystick_read_y(void)
 {
     /* ADD CODE */
+    return cyhal_adc_read_u16(&joystick_adc_chan_y_obj);
 
 }
 
@@ -108,5 +111,46 @@ joystick_position_t joystick_get_pos(void)
     joystick_position_t position = JOYSTICK_POS_CENTER;
     
     /* ADD CODE */
+    x_val = joystick_read_x();
+    y_val = joystick_read_y();
+
+    // Determine X direction: < 0.825V means moved, > 2.475V means moved
+    bool x_left = (x_val > JOYSTICK_THRESH_X_LEFT_2P475V);
+    bool x_right = (x_val < JOYSTICK_THRESH_X_RIGHT_0P825V);
+    
+    // Determine Y direction: < 0.825V means moved, > 2.475V means moved  
+    bool y_up = (y_val > JOYSTICK_THRESH_Y_UP_2P475V);
+    bool y_down = (y_val < JOYSTICK_THRESH_Y_DOWN_0P825V);
+  
+    if (x_left && y_up) {
+        position = JOYSTICK_POS_UPPER_LEFT;
+    }
+    else if (x_right && y_up) {
+        position = JOYSTICK_POS_UPPER_RIGHT;
+    }
+    else if (x_left && y_down) {
+        position = JOYSTICK_POS_LOWER_LEFT;
+    }
+    else if (x_right && y_down) {
+        position = JOYSTICK_POS_LOWER_RIGHT;
+    }
+    // Then cardinal directions
+    else if (x_left) {
+        position = JOYSTICK_POS_LEFT;
+    }
+    else if (x_right) {
+        position = JOYSTICK_POS_RIGHT;
+    }
+    else if (y_up) {
+        position = JOYSTICK_POS_UP;
+    }
+    else if (y_down) {
+        position = JOYSTICK_POS_DOWN;
+    }
+    // Default to center if no thresholds exceeded
+    else {
+        position = JOYSTICK_POS_CENTER;
+    }
+
     return position;
 }

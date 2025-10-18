@@ -29,33 +29,18 @@ static uint32_t buzzer_freq = 3500; // default
 static cyhal_clock_t buzzer_clock;
 static bool buzzer_clock_reserved = false;
 
-cy_rslt_t buzzer_init(float duty_cycle, uint32_t frequency)
+cy_rslt_t buzzer_init(float duty, uint32_t frequency)
 {
 	cy_rslt_t rslt;
-	buzzer_duty = duty_cycle;
+	buzzer_duty = duty;
 	buzzer_freq = frequency;
-
-	// Try to allocate/reserve a peripheral clock for PWM to improve stability.
-	// Use a generic peripheral clock block - this is a safe default on CAT1 targets.
-	rslt = cyhal_clock_allocate(&buzzer_clock, CYHAL_CLOCK_BLOCK_PERIPHERAL_16BIT);
-	if (rslt == CY_RSLT_SUCCESS)
+	if (buzzer_initialized)
 	{
-		buzzer_clock_reserved = true;
-		// If the clock supports DIVIDER or FREQUENCY, we could configure it here.
-		// For safety we do not force a frequency/divider change unless desired.
+		// Already initialized
+		return CY_RSLT_SUCCESS;
 	}
 
-	// Initialize PWM on the buzzer pin
-	rslt = cyhal_pwm_init(&buzzer_pwm, PIN_BUZZER, NULL);
-	if (rslt != CY_RSLT_SUCCESS)
-	{
-		if (buzzer_clock_reserved)
-		{
-			cyhal_clock_free(&buzzer_clock);
-			buzzer_clock_reserved = false;
-		}
-		return rslt;
-	}
+	
 
 	rslt = cyhal_pwm_set_duty_cycle(&buzzer_pwm, buzzer_duty, buzzer_freq);
 	if (rslt != CY_RSLT_SUCCESS)
@@ -73,15 +58,14 @@ void buzzer_on(void)
 {
 	if (!buzzer_initialized)
 	{
-		// Lazily initialize with default parameters
-		if (buzzer_init(0.5f, 3500) != CY_RSLT_SUCCESS)
-		{
-			return;
-		}
+		return;
 	}
 
-	cyhal_pwm_set_duty_cycle(&buzzer_pwm, buzzer_duty, buzzer_freq);
 	cyhal_pwm_start(&buzzer_pwm);
+
+	// Set the initial duty cycle
+	cyhal_pwm_set_duty_cycle(&buzzer_pwm, buzzer_duty, buzzer_freq);	
+
 }
 
 void buzzer_off(void)
@@ -89,7 +73,7 @@ void buzzer_off(void)
 	if (!buzzer_initialized) return;
 	cyhal_pwm_stop(&buzzer_pwm);
 	// Drive pin low to ensure buzzer off
-	cyhal_gpio_write(PIN_BUZZER, false);
+	//cyhal_gpio_write(PIN_BUZZER, false);
 }
 
 /**
