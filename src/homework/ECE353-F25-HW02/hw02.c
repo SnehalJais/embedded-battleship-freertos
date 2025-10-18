@@ -31,10 +31,12 @@ EventGroupHandle_t ECE353_RTOS_Events;
 void task_hw02_system_control(void *pvParameters)
 {
     (void)pvParameters; // Unused parameter
+
     
 
     // Clear the screen
     battleship_board_clear();  // Clear internal state
+
     lcd_msg_t lcd_msg;
     lcd_cmd_status_t status;
     lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
@@ -42,6 +44,7 @@ void task_hw02_system_control(void *pvParameters)
     xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(50));
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
     // LCD gatekeeper handles status printing
+
     
     vTaskDelay(pdMS_TO_TICKS(200));
 
@@ -52,14 +55,16 @@ void task_hw02_system_control(void *pvParameters)
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
     // LCD gatekeeper handles status printing
 
+
     // Test all tiles - Validate Tiles requirement
-    printf("3. Performing tile validation - green tile sweep...\n");
+    printf("3. Performing tile validation\n");
     lcd_msg.command = LCD_CMD_DRAW_TILE;
     lcd_msg.response_queue = xQueue_LCD_response;
     lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
     lcd_msg.payload.battleship.fill_color = LCD_COLOR_GREEN;
     
     // Animate a green tile moving across each square, row by row, left to right, top to bottom
+
     for (uint8_t row = 0; row < 10; row++) {
         for (uint8_t col = 0; col < 10; col++) {
             // Draw green tile at current position
@@ -67,7 +72,7 @@ void task_hw02_system_control(void *pvParameters)
             lcd_msg.payload.battleship.row = row;
             xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(50));
             if (xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)) != pdTRUE) {
-                printf("   Warning: No response for tile at (%d,%d)\n", col, row);
+                printf("Warning: No response for tile at (%d,%d)\n", col, row);
             }
             
             // Wait 100ms before moving to next tile
@@ -77,21 +82,23 @@ void task_hw02_system_control(void *pvParameters)
             lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
             xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(50));
             if (xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)) != pdTRUE) {
-                printf("   Warning: No response for clear at (%d,%d)\n", col, row);
+                printf("Warning: No response for clear at (%d,%d)\n", col, row);
             }
             
             // Reset fill color back to green for next tile
             lcd_msg.payload.battleship.fill_color = LCD_COLOR_GREEN;
         }
-        printf("   Completed row %d\n", row);
+      
     }
-    printf("   Tile validation complete - all 100 tiles visited\n");
+  
 
     // Draw valid ships
+
    
 
     // Test placing all valid ships from specification
-    printf("4. Placing all valid ships...\n");
+
+    printf("4. Placing all valid ships\n");
     lcd_msg.command = LCD_CMD_DRAW_SHIP;
     lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
     lcd_msg.payload.battleship.fill_color = LCD_COLOR_GRAY;
@@ -141,10 +148,11 @@ void task_hw02_system_control(void *pvParameters)
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
 
-    printf("\033[32m=== All valid ships placed successfully ===\033[0m\n");
+    printf("All valid ships placed successfully\n");
     
     // Test invalid ship placements (should all be rejected)
-    printf("5. Testing invalid ship placements...\n");
+
+    printf("5. Testing invalid ship placements\n");
     
     // Test 1: Battleship at (7,0) horizontal - Exceeds board width
     printf("   Testing Battleship at (7,0) horizontal - should exceed board width\n");
@@ -158,7 +166,7 @@ void task_hw02_system_control(void *pvParameters)
     
 
     // Test 2: Submarine at (0,8) vertical - Exceeds board height
-    printf("   Testing Submarine at (0,8) vertical - should exceed board height\n");
+    printf(" Testing Submarine at (0,8) vertical - should exceed board height\n");
     lcd_msg.payload.battleship.col = 0;
     lcd_msg.payload.battleship.row = 8;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_SUBMARINE;
@@ -169,24 +177,25 @@ void task_hw02_system_control(void *pvParameters)
 
     
     // Test 3: Carrier at (15,0) vertical - Starts outside board boundaries
-    printf("   Testing Carrier at (15,0) vertical - should start outside board\n");
+    printf("Testing Carrier at (15,0) vertical - should start outside board\n");
     lcd_msg.payload.battleship.col = 15;
     lcd_msg.payload.battleship.row = 0;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_CARRIER;
     lcd_msg.payload.battleship.horizontal = false;
     xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(50));
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
-    
-    printf("\033[32m=== All invalid ship placement tests passed ===\033[0m\n");
-    printf("=== HW02 Testing Complete ===\n");
+
+    printf("All invalid ship placement tests passed\n");
 
     // Display game statistics using LCD gatekeeper
+
     printf("6. Displaying game statistics on LCD...\n");
     
     // Send both messages immediately, one right after the other
+
     
     // Send both messages back-to-back for simultaneous display
-    printf("   Sending both game statistics messages...\n");
+
     
     // Prepare first message: "Hits: 5" at position (210, 40)
     lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
@@ -210,16 +219,17 @@ void task_hw02_system_control(void *pvParameters)
     // Send second message immediately after first
     xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(100));
     
-    // Wait for both responses
-    printf("   Both messages sent, waiting for responses...\n");
+   
    
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100)); // Second response
-    printf("   Both messages processed\n");
-    
-    printf("=== Game statistics displayed on LCD ===\n");
+  
+
+    printf("Game displayed");
 
     //test invalid ship placements
+
     // Print the hits/misses to the LCD
+
     
 
     while(1)
