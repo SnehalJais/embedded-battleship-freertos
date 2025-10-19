@@ -36,7 +36,6 @@ void task_hw02_system_control(void *pvParameters)
 
     // Clear the screen
     battleship_board_clear();  // Clear internal state
-
     lcd_msg_t lcd_msg;
     lcd_cmd_status_t status;
     lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
@@ -44,7 +43,6 @@ void task_hw02_system_control(void *pvParameters)
     xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(50));
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
     // LCD gatekeeper handles status printing
-
     
     vTaskDelay(pdMS_TO_TICKS(200));
 
@@ -55,7 +53,6 @@ void task_hw02_system_control(void *pvParameters)
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
     // LCD gatekeeper handles status printing
 
-
     // Test all tiles - Validate Tiles requirement
     printf("3. Performing tile validation\n");
     lcd_msg.command = LCD_CMD_DRAW_TILE;
@@ -64,7 +61,6 @@ void task_hw02_system_control(void *pvParameters)
     lcd_msg.payload.battleship.fill_color = LCD_COLOR_GREEN;
     
     // Animate a green tile moving across each square, row by row, left to right, top to bottom
-
     for (uint8_t row = 0; row < 10; row++) {
         for (uint8_t col = 0; col < 10; col++) {
             // Draw green tile at current position
@@ -93,11 +89,9 @@ void task_hw02_system_control(void *pvParameters)
   
 
     // Draw valid ships
-
    
 
     // Test placing all valid ships from specification
-
     printf("4. Placing all valid ships\n");
     lcd_msg.command = LCD_CMD_DRAW_SHIP;
     lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
@@ -151,7 +145,6 @@ void task_hw02_system_control(void *pvParameters)
     printf("All valid ships placed successfully\n");
     
     // Test invalid ship placements (should all be rejected)
-
     printf("5. Testing invalid ship placements\n");
     
     // Test 1: Battleship at (7,0) horizontal - Exceeds board width
@@ -188,14 +181,11 @@ void task_hw02_system_control(void *pvParameters)
     printf("All invalid ship placement tests passed\n");
 
     // Display game statistics using LCD gatekeeper
-
     printf("6. Displaying game statistics on LCD...\n");
     
     // Send both messages immediately, one right after the other
-
     
     // Send both messages back-to-back for simultaneous display
-
     
     // Prepare first message: "Hits: 5" at position (210, 40)
     lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
@@ -227,9 +217,7 @@ void task_hw02_system_control(void *pvParameters)
     printf("Game displayed");
 
     //test invalid ship placements
-
     // Print the hits/misses to the LCD
-
     
 
     while(1)
