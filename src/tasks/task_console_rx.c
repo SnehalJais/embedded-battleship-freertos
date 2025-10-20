@@ -49,13 +49,13 @@ TaskHandle_t TaskHandle_Console_Rx;
 void task_console_rx(void *param)
 {
     (void)param; // Unused parameter
-    printf("DEBUG: Console RX task started and waiting for notifications\n\r");
+    //printf("DEBUG: Console RX task started and waiting for notifications\n\r");
     
     while (1)
     {
         /* ADD CODE */
         //wait indefinitely for a task notification
-        printf("DEBUG: Console RX task waiting for notification...\n\r");
+        // printf("DEBUG: Console RX task waiting for notification...\n\r");
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         // Debug: Print what command was received
@@ -129,7 +129,7 @@ bool task_console_resources_init_rx(void)
         return false; // Task creation failed
     }
 
-    printf("DEBUG: Console RX task created successfully\n\r");
+    //printf("DEBUG: Console RX task created successfully\n\r");
     return true; // Resources initialized successfully
 }
 #endif

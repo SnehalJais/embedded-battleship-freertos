@@ -91,6 +91,7 @@ for (uint16_t i = 0; i < payload->length; i++)
 {
     if (!lcd_console_draw_char(&x_offset, line * LCD_CONSOLE_LINE_HEIGHT, payload->message[i], LCD_COLOR_WHITE, LCD_COLOR_BLACK))
     {
+
         /* Don't free string literals - only free if dynamically allocated */
         // vPortFree((void *) payload->message);
         return false; // Failed to draw character

@@ -1,3 +1,16 @@
+#include "battleship.h"
+
+// Helper to convert ship type enum to string
+static const char* battleship_type_to_str(battleship_type_t type) {
+    switch(type) {
+        case BATTLESHIP_TYPE_CARRIER:    return "carrier";
+        case BATTLESHIP_TYPE_BATTLESHIP: return "battleship";
+        case BATTLESHIP_TYPE_CRUISER:    return "cruiser";
+        case BATTLESHIP_TYPE_SUBMARINE:  return "submarine";
+        case BATTLESHIP_TYPE_DESTROYER:  return "destroyer";
+        default:                         return "unknown";
+    }
+}
 /**
  * @file task_lcd.c
  * @author Joe Krachey (jkrachey@wisc.edu)
@@ -39,11 +52,11 @@ void task_lcd(void *pvParameters)
             {
                 xQueueSend(lcd_msg.response_queue, &status, 0);
             }
-            if (status == LCD_CMD_STATUS_SUCCESS)
-            {
-                // Successfully cleared screen
-                printf("Screen cleared successfully\n");
-            }
+            // if (status == LCD_CMD_STATUS_SUCCESS)
+            // {
+            //     // Successfully cleared screen
+            //     printf("Screen cleared successfully\n");
+            // }
             else
             {
                 // Failed to clear screen
@@ -54,20 +67,20 @@ void task_lcd(void *pvParameters)
 
         case LCD_CONSOLE_DRAW_MESSAGE:
         {
-            printf("Drawing console message: '%s' at (%d, %d)\n", 
-                   lcd_msg.payload.console.message, 
-                   lcd_msg.payload.console.x_offset, 
-                   lcd_msg.payload.console.y_offset);
+            // printf("Drawing console message: '%s' at (%d, %d)\n", 
+            //        lcd_msg.payload.console.message, 
+            //        lcd_msg.payload.console.x_offset, 
+            //        lcd_msg.payload.console.y_offset);
             
             // Map y_offset to line number to avoid overwriting
             uint16_t y = lcd_msg.payload.console.y_offset;
             uint8_t line = (uint8_t)(y / LCD_CONSOLE_LINE_HEIGHT);
             if (line >= LCD_CONSOLE_MAX_LINES) line = LCD_CONSOLE_MAX_LINES - 1;
             
-            printf("Console draw: '%s' at x=%u line=%u\n", 
-                   lcd_msg.payload.console.message,
-                   lcd_msg.payload.console.x_offset,
-                   line);
+            // printf("Console draw: '%s' at x=%u line=%u\n", 
+            //        lcd_msg.payload.console.message,
+            //        lcd_msg.payload.console.x_offset,
+            //        line);
             
             if (!lcd_console_draw_string(&lcd_msg.payload.console, line))
             {
@@ -77,7 +90,7 @@ void task_lcd(void *pvParameters)
             }
             else
             {
-                printf("Successfully drew console message\n");
+                
                 status = LCD_CMD_STATUS_SUCCESS;
             }
             
@@ -100,6 +113,7 @@ void task_lcd(void *pvParameters)
                     // Calculate the x,y coordinates for each rectangle
                     uint16_t x = BATTLE_SHIP_LEFT_MARGIN + (col * BATTLESHIP_BOX_WIDTH);
                     uint16_t y = BATTLE_SHIP_TOP_MARGIN + (row * BATTLESHIP_BOX_HEIGHT);
+                    
 
                     // Draw the outer blue rectangle (border)
                     lcd_draw_rectangle(x, y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, LCD_COLOR_BLUE, false);
@@ -156,19 +170,19 @@ void task_lcd(void *pvParameters)
             // Boundary validation
             if (lcd_msg.payload.battleship.horizontal) {
                 if (lcd_msg.payload.battleship.col + ship_length > 10) {
-                    printf("Invalid ship placement: exceeds horizontal bounds\n");
+                    printf("Correctly detected invalid ship placement (too far right)\n");
                     valid = false;
                 }
             } else {
                 if (lcd_msg.payload.battleship.row + ship_length > 10) {
-                    printf("Invalid ship placement: exceeds vertical bounds\n");
+                    printf("Correctly detected invalid ship placement (too far down)\n");
                     valid = false;
                 }
             }
             
             // Check if coordinates are within board
             if (lcd_msg.payload.battleship.col >= 10 || lcd_msg.payload.battleship.row >= 10) {
-                printf("Invalid ship placement: starting coordinates out of bounds\n");
+                printf("Correctly detected invalid ship placement (invalid coordinates)\n");
                 valid = false;
             }
             
@@ -198,6 +212,10 @@ void task_lcd(void *pvParameters)
                                          lcd_msg.payload.battleship.fill_color, false);
                     }
                 }
+                printf("Drew %s successfully at (%d, %d)\n",
+                    battleship_type_to_str(lcd_msg.payload.battleship.type),
+                    lcd_msg.payload.battleship.row,
+                    lcd_msg.payload.battleship.col);
                 status = LCD_CMD_STATUS_SUCCESS;
             } else {
                 // Invalid coordinates/dimensions
