@@ -103,7 +103,7 @@ bool battleship_draw_game_board()
 
 /**
  * @brief
- *  Draw a single Battleship rectangle
+ *  Draw a single Battleship rectangle (not used in hw02, but kept for future)
  * @return true
  * @return false
  */
@@ -136,7 +136,7 @@ bool battleship_draw_cursor(
 
 /**
  * @brief
- *  Restores a box border to the color of the game board
+ *  Restores a box border to the color of the game board (not used in hw02, but kept for future)
  * @param col
  * @param row
  * @param player_id
@@ -151,7 +151,7 @@ bool battleship_clear_cursor(uint8_t col, uint8_t row, uint8_t player_id)
 
 /**
  * @brief
- *  Places a ship on the game board with error checking
+ *  Places a ship on the game board with error checking (not used in hw02, but kept for future)
  * @param col
  * @param row
  * @param type
@@ -215,7 +215,7 @@ bool battleship_place_ship(uint8_t col, uint8_t row, battleship_type_t type, boo
 
 /**
  * @brief
- *  Checks for overlapping ships on the game board
+ *  Checks for overlapping ships on the game board (not used fir hw02, but kept for future)
  * @param col
  * @param row
  * @param type

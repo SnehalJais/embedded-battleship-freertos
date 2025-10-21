@@ -171,8 +171,8 @@ void task_hw02_system_control(void *pvParameters)
     lcd_msg.payload.console.length = (uint16_t)strlen(lcd_msg.payload.console.message);
 
     // Send first message immediately
-    xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(100));
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100)); // First response
+    xQueueSend(xQueue_LCD, &lcd_msg, 0);
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)); // First response
 
     // Prepare second message: "Miss: 3" at position (210, 80)
     lcd_msg.payload.console.x_offset = 210;
@@ -181,9 +181,8 @@ void task_hw02_system_control(void *pvParameters)
     lcd_msg.payload.console.length = (uint16_t)strlen(lcd_msg.payload.console.message);
 
     // Send second message immediately after first
-    xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(100));
-
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100)); // Second response
+    xQueueSend(xQueue_LCD, &lcd_msg, 0);
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)); // Second response
 
     while (1)
     {
