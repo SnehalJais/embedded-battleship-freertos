@@ -1,12 +1,12 @@
- /**
+/**
  * @file hw02.c
  * @author Joe Krachey (jkrachey@wisc.edu)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-10-08
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "hw02.h"
 #include "battleship.h"
@@ -32,19 +32,15 @@ void task_hw02_system_control(void *pvParameters)
 {
     (void)pvParameters; // Unused parameter
 
-    
-
     // Clear the screen
-    battleship_board_clear();  // Clear internal state
-    lcd_msg_t lcd_msg;
-    lcd_cmd_status_t status;
-    lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
-    lcd_msg.response_queue = xQueue_LCD_response;
-    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
+    battleship_board_clear();                                       // Clear internal state
+    lcd_msg_t lcd_msg;                                              // LCD message
+    lcd_cmd_status_t status;                                        // LCD command status
+    lcd_msg.command = LCD_CMD_CLEAR_SCREEN;                         // Clear screen command
+    lcd_msg.response_queue = xQueue_LCD_response;                   // Response queue
+    xQueueSend(xQueue_LCD, &lcd_msg, 0);                            // Send clear screen command
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)); // Wait for response
     // LCD gatekeeper handles status printing
-    
-
 
     // Draw the game board
     lcd_msg.command = LCD_CMD_DRAW_BOARD;
@@ -58,52 +54,52 @@ void task_hw02_system_control(void *pvParameters)
     lcd_msg.response_queue = xQueue_LCD_response;
     lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
     lcd_msg.payload.battleship.fill_color = LCD_COLOR_GREEN;
-    
+
     // Animate a green tile moving across each square, row by row, left to right, top to bottom
-    for (uint8_t row = 0; row < 10; row++) {
-        for (uint8_t col = 0; col < 10; col++) {
+    for (uint8_t row = 0; row < 10; row++)
+    {
+        for (uint8_t col = 0; col < 10; col++)
+        {
             // Draw green tile at current position
             lcd_msg.payload.battleship.col = col;
             lcd_msg.payload.battleship.row = row;
             xQueueSend(xQueue_LCD, &lcd_msg, 0);
-            if (xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)) != pdTRUE) {
+            if (xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)) != pdTRUE)
+            {
                 printf("Warning: No response for tile at (%d,%d)\n", col, row);
             }
-            
+
             // Wait 100ms before moving to next tile
             vTaskDelay(pdMS_TO_TICKS(100));
-            
+
             // Clear current tile back to black (make only one green tile visible at a time)
             lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
             xQueueSend(xQueue_LCD, &lcd_msg, 0);
-            if (xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)) != pdTRUE) {
+            if (xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50)) != pdTRUE)
+            {
                 printf("Warning: No response for clear at (%d,%d)\n", col, row);
             }
-            
+
             // Reset fill color back to green for next tile
             lcd_msg.payload.battleship.fill_color = LCD_COLOR_GREEN;
         }
-      
     }
-  
 
     // Draw valid ships
-   
 
     // Test placing all valid ships from specification
     lcd_msg.command = LCD_CMD_DRAW_SHIP;
     lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
     lcd_msg.payload.battleship.fill_color = LCD_COLOR_GRAY;
-    
+
     // Battleship at (0,0) horizontal
-   
     lcd_msg.payload.battleship.row = 0;
     lcd_msg.payload.battleship.col = 0;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_BATTLESHIP;
     lcd_msg.payload.battleship.horizontal = true;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
-    
+
     // Destroyer at (2,2) vertical
     lcd_msg.payload.battleship.row = 2;
     lcd_msg.payload.battleship.col = 2;
@@ -111,7 +107,7 @@ void task_hw02_system_control(void *pvParameters)
     lcd_msg.payload.battleship.horizontal = false;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
-    
+
     // Submarine at (5,5) horizontal
     lcd_msg.payload.battleship.row = 5;
     lcd_msg.payload.battleship.col = 5;
@@ -119,16 +115,16 @@ void task_hw02_system_control(void *pvParameters)
     lcd_msg.payload.battleship.horizontal = true;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
-    
-    //cruiser at (7,7) vertical
+
+    // cruiser at (7,7) vertical
     lcd_msg.payload.battleship.row = 7;
     lcd_msg.payload.battleship.col = 7;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_CRUISER;
     lcd_msg.payload.battleship.horizontal = false;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
-    
-    // Carrier at (9,0) vertical
+
+    // Carrier at (9,0) horizontal
     lcd_msg.payload.battleship.row = 9;
     lcd_msg.payload.battleship.col = 0;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_CARRIER;
@@ -136,30 +132,26 @@ void task_hw02_system_control(void *pvParameters)
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
 
-    
     // Test invalid ship placements (should all be rejected)
 
-    // Test 1: Battleship at (0,6) horizontal - Exceeds board width
+    // Test 1: Battleship at (0,7) horizontal - Exceeds board width
     lcd_msg.payload.battleship.row = 0;
     lcd_msg.payload.battleship.col = 7;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_BATTLESHIP;
     lcd_msg.payload.battleship.horizontal = true;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
-    
-    
 
-    // Test 2: Submarine at (0,8) vertical - Exceeds board height
+    // Test 2: Submarine at (8,0) vertical - Exceeds board height
     lcd_msg.payload.battleship.row = 8;
     lcd_msg.payload.battleship.col = 0;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_SUBMARINE;
     lcd_msg.payload.battleship.horizontal = false;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
-    
 
-    
-    // Test 3: Carrier at (15,0) vertical - Starts outside board boundaries
+    // Test 3: Carrier at (15,0) vertical - Starts outside board boundaries,
+    // and exceeds board height
     lcd_msg.payload.battleship.row = 15;
     lcd_msg.payload.battleship.col = 0;
     lcd_msg.payload.battleship.type = BATTLESHIP_TYPE_CARRIER;
@@ -167,51 +159,37 @@ void task_hw02_system_control(void *pvParameters)
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
 
+    // All invalid ship placement tests passed
     printf("\033[32mAll invalid ship placement tests passed\033[0m\n");
 
-    
-    // Send both messages immediately, one right after the other
-    
-    // Send both messages back-to-back for simultaneous display
-    
     // Prepare first message: "Hits: 5" at position (210, 40)
     lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
     lcd_msg.response_queue = xQueue_LCD_response;
     lcd_msg.payload.console.x_offset = 210;
     lcd_msg.payload.console.y_offset = 40;
-    lcd_msg.payload.console.message  = "Hits: 5";
-    lcd_msg.payload.console.length   = (uint16_t)strlen(lcd_msg.payload.console.message);
-    
+    lcd_msg.payload.console.message = "Hits: 5";
+    lcd_msg.payload.console.length = (uint16_t)strlen(lcd_msg.payload.console.message);
+
     // Send first message immediately
     xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(100));
-     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100)); // First response
-    
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100)); // First response
+
     // Prepare second message: "Miss: 3" at position (210, 80)
-   
     lcd_msg.payload.console.x_offset = 210;
     lcd_msg.payload.console.y_offset = 80;
-    lcd_msg.payload.console.message  = "Miss: 3";
-    lcd_msg.payload.console.length   = (uint16_t)strlen(lcd_msg.payload.console.message);
-    
+    lcd_msg.payload.console.message = "Miss: 3";
+    lcd_msg.payload.console.length = (uint16_t)strlen(lcd_msg.payload.console.message);
+
     // Send second message immediately after first
     xQueueSend(xQueue_LCD, &lcd_msg, pdMS_TO_TICKS(100));
-    
-   
-   
+
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100)); // Second response
-  
 
-
-    //test invalid ship placements
-    // Print the hits/misses to the LCD
-    
-
-    while(1)
+    while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
-
 
 /*************************************************
  * @brief
@@ -237,10 +215,11 @@ void app_init_hw(void)
     if (rslt != CY_RSLT_SUCCESS)
     {
         printf("LCD initialization failed!\n\r");
-        for(int i = 0; i < 100000; i++) {}
+        for (int i = 0; i < 100000; i++)
+        {
+        }
         CY_ASSERT(0);
     }
-   
 }
 
 /*****************************************************************************/
@@ -252,7 +231,7 @@ void app_init_hw(void)
  */
 void app_main(void)
 {
-/* Register the tasks with FreeRTOS*/
+    /* Register the tasks with FreeRTOS*/
 
     ECE353_RTOS_Events = xEventGroupCreate();
 
@@ -261,7 +240,9 @@ void app_main(void)
     if (xQueue_LCD_response == NULL)
     {
         printf("Failed to create LCD response queue\n\r");
-        for(int i = 0; i < 100000; i++) {}
+        for (int i = 0; i < 100000; i++)
+        {
+        }
         CY_ASSERT(0);
     }
 
@@ -269,26 +250,29 @@ void app_main(void)
     if (!task_lcd_init())
     {
         printf("Failed to initialize LCD task\n\r");
-        for(int i = 0; i < 100000; i++) {}
-       CY_ASSERT(0); // If the task initialization fails, assert
+        for (int i = 0; i < 100000; i++)
+        {
+        }
+        CY_ASSERT(0); // If the task initialization fails, assert
     }
 
     /* Initialize Console resources for FreeRTOS */
     if (!task_console_init())
     {
         printf("Failed to initialize console task\n\r");
-        for(int i = 0; i < 100000; i++) {}
-       CY_ASSERT(0); // If the task initialization fails, assert
+        for (int i = 0; i < 100000; i++)
+        {
+        }
+        CY_ASSERT(0); // If the task initialization fails, assert
     }
 
     xTaskCreate(
-        task_hw02_system_control, 
-        "Task System Control", 
-        configMINIMAL_STACK_SIZE*10, 
-        NULL, 
-        tskIDLE_PRIORITY + 1, 
-        NULL
-    );
+        task_hw02_system_control,
+        "Task System Control",
+        configMINIMAL_STACK_SIZE * 10,
+        NULL,
+        tskIDLE_PRIORITY + 1,
+        NULL);
 
     /* Start the scheduler*/
     vTaskStartScheduler();

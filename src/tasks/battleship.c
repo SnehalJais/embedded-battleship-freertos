@@ -19,17 +19,25 @@
 // [row][col]
 static uint8_t game_board[10][10] = {0};
 
-
+// length of ship based on type
 uint8_t battleship_get_ship_length(battleship_type_t type)
 {
-    switch(type) {
-        case BATTLESHIP_TYPE_CARRIER:    return 5;
-        case BATTLESHIP_TYPE_BATTLESHIP: return 4;
-        case BATTLESHIP_TYPE_CRUISER:    return 3;
-        case BATTLESHIP_TYPE_SUBMARINE:  return 3;
-        case BATTLESHIP_TYPE_DESTROYER:  return 2;
-        case BATTLESHIP_TYPE_NONE:       return 0;
-        default:                         return 0;
+    switch (type)
+    {
+    case BATTLESHIP_TYPE_CARRIER:
+        return 5;
+    case BATTLESHIP_TYPE_BATTLESHIP:
+        return 4;
+    case BATTLESHIP_TYPE_CRUISER:
+        return 3;
+    case BATTLESHIP_TYPE_SUBMARINE:
+        return 3;
+    case BATTLESHIP_TYPE_DESTROYER:
+        return 2;
+    case BATTLESHIP_TYPE_NONE:
+        return 0;
+    default:
+        return 0;
     }
 }
 
@@ -43,6 +51,7 @@ uint8_t battleship_get_ship_length(battleship_type_t type)
  */
 bool battleship_get_box_coordinates(lcd_coord_t *coord, uint8_t col, uint8_t row)
 {
+    // Validate row and column
     if (row < 10 && col < 10)
     {
         coord->x = BATTLE_SHIP_LEFT_MARGIN + (col * BATTLESHIP_BOX_WIDTH);
@@ -65,19 +74,28 @@ bool battleship_get_box_coordinates(lcd_coord_t *coord, uint8_t col, uint8_t row
  */
 bool battleship_draw_game_board()
 {
-    lcd_coord_t coord;
+    // Clear screen first to ensure clean drawing
+    lcd_clear_screen(LCD_COLOR_BLACK);
 
+    // Use nested loops to iterate through rows and columns
     for (uint8_t row = 0; row < 10; row++)
     {
+        // Draw each column in the current row
         for (uint8_t col = 0; col < 10; col++)
         {
-            if (!battleship_get_box_coordinates(&coord, col, row))
-            {
-                return false; // Failed to get coordinates
-            }
+            // Calculate the x,y coordinates for each rectangle
+            uint16_t x = BATTLE_SHIP_LEFT_MARGIN + (col * BATTLESHIP_BOX_WIDTH);
+            uint16_t y = BATTLE_SHIP_TOP_MARGIN + (row * BATTLESHIP_BOX_HEIGHT);
 
-            lcd_draw_rectangle(coord.x, coord.y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, LCD_COLOR_BLUE, true);
-            lcd_draw_rectangle(coord.x, coord.y, BATTLESHIP_BOX_WIDTH - BATTLESHIP_BORDER_WIDTH, BATTLESHIP_BOX_HEIGHT - BATTLESHIP_BORDER_WIDTH, LCD_COLOR_BLACK, true);
+            // Draw the outer blue rectangle (border)
+            lcd_draw_rectangle(x, y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, LCD_COLOR_BLUE, false);
+
+            // Draw the inner black rectangle (fill) to create border effect
+            lcd_draw_rectangle(x + BATTLESHIP_BORDER_WIDTH / 2,
+                               y + BATTLESHIP_BORDER_WIDTH / 2,
+                               BATTLESHIP_BOX_WIDTH - BATTLESHIP_BORDER_WIDTH,
+                               BATTLESHIP_BOX_HEIGHT - BATTLESHIP_BORDER_WIDTH,
+                               LCD_COLOR_BLACK, false);
         }
     }
     return true;
@@ -95,8 +113,9 @@ bool battleship_draw_cursor(
     uint16_t border_color,
     uint16_t fill_color)
 {
-    lcd_coord_t coord;
+    lcd_coord_t coord; // Coordinate structure
 
+    // Get the coordinates for the specified box
     if (!battleship_get_box_coordinates(&coord, col, row))
     {
         return false; // Failed to get coordinates
@@ -104,14 +123,14 @@ bool battleship_draw_cursor(
 
     // Draw the outer rectangle (border)
     lcd_draw_rectangle(coord.x, coord.y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, border_color, false);
-    
+
     // Draw the inner rectangle (fill) - smaller to create border effect
-    lcd_draw_rectangle(coord.x + BATTLESHIP_BORDER_WIDTH/2, 
-                      coord.y + BATTLESHIP_BORDER_WIDTH/2, 
-                      BATTLESHIP_BOX_WIDTH - BATTLESHIP_BORDER_WIDTH, 
-                      BATTLESHIP_BOX_HEIGHT - BATTLESHIP_BORDER_WIDTH, 
-                      fill_color, true);
-    
+    lcd_draw_rectangle(coord.x + BATTLESHIP_BORDER_WIDTH / 2,
+                       coord.y + BATTLESHIP_BORDER_WIDTH / 2,
+                       BATTLESHIP_BOX_WIDTH - BATTLESHIP_BORDER_WIDTH,
+                       BATTLESHIP_BOX_HEIGHT - BATTLESHIP_BORDER_WIDTH,
+                       fill_color, true);
+
     return true;
 }
 
@@ -130,14 +149,22 @@ bool battleship_clear_cursor(uint8_t col, uint8_t row, uint8_t player_id)
     return battleship_draw_cursor(col, row, LCD_COLOR_BLUE, LCD_COLOR_BLACK);
 }
 
-
-//place battledhip with error checking
+/**
+ * @brief
+ *  Places a ship on the game board with error checking
+ * @param col
+ * @param row
+ * @param type
+ * @param horizontal
+ * @param player_id
+ * @return true
+ * @return false
+ */
 bool battleship_place_ship(uint8_t col, uint8_t row, battleship_type_t type, bool horizontal, uint8_t player_id)
 {
-    // Implementation for placing ships with error checking can be added here
-    // Check for valid placement, overlaps, boundaries, etc.
+    // Get ship length
     uint8_t ship_length = battleship_get_ship_length(type);
-    
+
     // Boundary checks
     if (horizontal)
     {
@@ -153,18 +180,18 @@ bool battleship_place_ship(uint8_t col, uint8_t row, battleship_type_t type, boo
             return false; // Ship goes out of bounds
         }
     }
-    
+
     // Check for overlaps with existing ships
     if (battleship_check_overlap(col, row, type, horizontal, player_id))
     {
         return false; // Ship would overlap with existing ship
     }
-    
+
     // If all checks pass, place the ship and update the game board
     for (uint8_t i = 0; i < ship_length; i++)
     {
         uint8_t place_col, place_row;
-        
+        // Determine the position to mark based on orientation
         if (horizontal)
         {
             place_col = col + i;
@@ -175,10 +202,10 @@ bool battleship_place_ship(uint8_t col, uint8_t row, battleship_type_t type, boo
             place_col = col;
             place_row = row + i;
         }
-        
+
         // Mark this space as occupied in the game board
         game_board[place_row][place_col] = 1;
-        
+
         // Draw the ship space in grey
         battleship_draw_cursor(place_col, place_row, LCD_COLOR_BLUE, LCD_COLOR_GRAY);
     }
@@ -186,16 +213,28 @@ bool battleship_place_ship(uint8_t col, uint8_t row, battleship_type_t type, boo
     return true;
 }
 
-//overlapping ship check
+/**
+ * @brief
+ *  Checks for overlapping ships on the game board
+ * @param col
+ * @param row
+ * @param type
+ * @param horizontal
+ * @param player_id
+ * @return true
+ * @return false
+ */
 bool battleship_check_overlap(uint8_t col, uint8_t row, battleship_type_t type, bool horizontal, uint8_t player_id)
 {
+    // Get ship length
     uint8_t ship_length = battleship_get_ship_length(type);
-    
+
     // Check each space the ship would occupy
     for (uint8_t i = 0; i < ship_length; i++)
     {
         uint8_t check_col, check_row;
-        
+
+        // Determine the position to check based on orientation
         if (horizontal)
         {
             check_col = col + i;
@@ -206,61 +245,38 @@ bool battleship_check_overlap(uint8_t col, uint8_t row, battleship_type_t type, 
             check_col = col;
             check_row = row + i;
         }
-        
+
         // Guard against out-of-bounds access - treat OOB as conflict
-        if (check_row >= 10 || check_col >= 10) {
+        if (check_row >= 10 || check_col >= 10)
+        {
             return true; // Treat OOB as overlap/invalid
         }
-        
+
         // Check if this space is already occupied
         if (game_board[check_row][check_col] != 0)
         {
             return true; // Overlap detected
         }
     }
-    
+
     return false; // No overlap
 }
 
-// Clear the internal game board array 
+/**
+ * @brief
+ *  Clear the internal game board array
+ */
 void battleship_board_clear(void)
 {
-    for (uint8_t r = 0; r < 10; r++) {
-        for (uint8_t c = 0; c < 10; c++) {
+    // Clear the internal game board array
+    for (uint8_t r = 0; r < 10; r++)
+    {
+        // Iterate through each column
+        for (uint8_t c = 0; c < 10; c++)
+        {
             game_board[r][c] = 0;
         }
     }
 }
 
-// // Test function to place ships according to the configuration
-// bool battleship_place_test_ships()
-// {
-//     // Clear the internal game board data (LCD task handles visual clearing)
-//     battleship_clear_game_board();
-    
-//     // Place ships according to the test configuration
-//     // Note: Position (x,y) maps to (col, row)
-    
-//     // Carrier at (9,0) Horizontal - length 5
-//     if (!battleship_place_ship(9, 0, BATTLESHIP_TYPE_CARRIER, true))
-//         return false;
-    
-//     // Battleship at (0,0) Horizontal - length 4  
-//     if (!battleship_place_ship(0, 0, BATTLESHIP_TYPE_BATTLESHIP, true))
-//         return false;
-    
-//     // Destroyer at (2,2) Vertical - length 2
-//     if (!battleship_place_ship(2, 2, BATTLESHIP_TYPE_DESTROYER, false))
-//         return false;
-    
-//     // Submarine at (5,5) Horizontal - length 3
-//     if (!battleship_place_ship(5, 5, BATTLESHIP_TYPE_SUBMARINE, true))
-//         return false;
-    
-//     // Cruiser at (7,7) Vertical - length 3
-//     if (!battleship_place_ship(7, 7, BATTLESHIP_TYPE_CRUISER, false))
-//         return false;
-    
-//     return true; // All ships placed successfully
-// }
 #endif
