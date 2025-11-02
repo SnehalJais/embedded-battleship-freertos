@@ -13,6 +13,7 @@
 #ifdef ECE353_FREERTOS
 
 #include "task_buzzer.h"
+#include "rtos_events.h"
 
 /**
  * @brief 
@@ -31,19 +32,19 @@ void task_buzzer(void *arg)
     {
         // Wait for either SW1 or SW2 button press events
         EventBits_t events = xEventGroupWaitBits(
-            ECE353_RTOS_Events,           // Event group handle
-            SW1_PRESSED | SW2_PRESSED,    // Bits to wait for (SW1 OR SW2)
-            pdTRUE,                       // Clear bits on exit
-            pdFALSE,                      // Wait for ANY bit (not all)
-            portMAX_DELAY                 // Wait indefinitely
+            ECE353_RTOS_Events,                                    // Event group handle
+            ECE353_RTOS_EVENTS_SW1 | ECE353_RTOS_EVENTS_SW2,     // Bits to wait for (SW1 OR SW2)
+            pdTRUE,                                               // Clear bits on exit
+            pdFALSE,                                              // Wait for ANY bit (not all)
+            portMAX_DELAY                                         // Wait indefinitely
         );
         
-        if (events & SW1_PRESSED)
+        if (events & ECE353_RTOS_EVENTS_SW1)
         {
             printf("SW1 Pressed - Buzzer ON\n\r");
             buzzer_on();
         }
-        if (events & SW2_PRESSED)
+        if (events & ECE353_RTOS_EVENTS_SW2)
         {
             printf("SW2 Pressed - Buzzer OFF\n\r");
             buzzer_off();

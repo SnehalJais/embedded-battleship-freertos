@@ -9,8 +9,9 @@
  *
  */
 #include "task_console.h"
+#include "main.h"
+#include "cyhal_uart.h"
 
-#ifdef ECE353_FREERTOS
 /**
  * @brief
  * This function is the event handler for the console UART.
@@ -33,32 +34,28 @@ void console_event_handler(void *handler_arg, cyhal_uart_event_t event)
     if ((event & CYHAL_UART_IRQ_RX_NOT_EMPTY) == CYHAL_UART_IRQ_RX_NOT_EMPTY)
     {
         // ADD CODE
+        c = PORT_SCB_CONSOLE->RX_FIFO_RD;
 
-        // read in the character
-        cyhal_uart_getc(&cy_retarget_io_uart_obj, &c, 0);
-
-        // echo the character to the hardware FIFO
-        cyhal_uart_putc(&cy_retarget_io_uart_obj, c);
+        PORT_SCB_CONSOLE->TX_FIFO_WR = c; // Echo the character back to the console hardware FIFO
 
         // if characyer is equal to a backspace or the delete key, remove the
         // last character from array
-        if ((c == '\b' || c == 127))
+        if ((c == '\b' || c == 0x7F))
         {
             // if the index is greater than 0, then we have something to delete
             if (produce_console_buffer->index > 0)
             {
                 // decrement the index
                 produce_console_buffer->index--;
-                // NULL terminate the string
-                produce_console_buffer->data[produce_console_buffer->index] = '\0';
             }
+            return;
         }
 
         // else if the current character is a \n or \r,
         else if (c == '\n' || c == '\r')
         {
             // if the index is greater than 0, then we have a command to process
-            if (produce_console_buffer->index > 0)
+            if (produce_console_buffer->index != 0)
             {
                 // NULL terminate the string
                 produce_console_buffer->data[produce_console_buffer->index] = '\0';
@@ -70,7 +67,7 @@ void console_event_handler(void *handler_arg, cyhal_uart_event_t event)
                 produce_console_buffer->index = 0;
 
                 // Send the task notification to the bottom half task
-            //printf("DEBUG ISR: Sending notification to console task\n\r");
+                // printf("DEBUG ISR: Sending notification to console task\n\r");
                 vTaskNotifyGiveFromISR(TaskHandle_Console_Rx, &xHigherPriorityTaskWoken);
                 portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             }
@@ -78,28 +75,29 @@ void console_event_handler(void *handler_arg, cyhal_uart_event_t event)
         // else add the character to the buffer and increment the index
         else
         {
-            // Only add if we have room in the buffer (leave space for null terminator)
-            if (produce_console_buffer->index < (CONSOLE_BUFFER_SIZE - 1))
-            {
-                produce_console_buffer->data[produce_console_buffer->index] = c;
-                produce_console_buffer->index++;
-            }
+            produce_console_buffer->data[produce_console_buffer->index++] = c;
         }
     }
     if ((event & CYHAL_UART_IRQ_TX_EMPTY) == CYHAL_UART_IRQ_TX_EMPTY)
     {
-        char c;
         // Check if there are characters to transmit
-        if (circular_buffer_remove(circular_buffer_tx, &c))
+        if (circular_buffer_empty(circular_buffer_tx))
         {
-            // Transmit the next character
-            cyhal_uart_putc(&cy_retarget_io_uart_obj, c);
+            cyhal_uart_enable_event(&cy_retarget_io_uart_obj, CYHAL_UART_IRQ_TX_EMPTY, 7, false);
         }
         else
         {
-            // No more characters to transmit, disable transmit empty interrupt
-            cyhal_uart_enable_event(&cy_retarget_io_uart_obj, CYHAL_UART_IRQ_TX_EMPTY, INT_PRIORITY_CONSOLE, false);
+            char c;
+            // Remove the next character from the circular buffer
+            circular_buffer_remove(circular_buffer_tx, &c);
+
+            // Transmit the character
+            PORT_SCB_CONSOLE->TX_FIFO_WR = c;
         }
+    }
+    else
+    {
+        // no action needed here
     }
 }
 
@@ -141,4 +139,3 @@ bool task_console_init(void)
 
     return true; // Initialization successful
 }
-#endif

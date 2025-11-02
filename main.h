@@ -1,12 +1,12 @@
 /**
  * @file main.h
  * @author Joe Krachey (jkrachey@wisc.edu)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-07-01
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 
 #ifndef __MAIN_H__
@@ -40,38 +40,39 @@
 #endif
 
 /* This macro is used to determine if we are building an executable for example code or ICE code.
- * Only a single line should be uncommented at one time.  
-*/
-//#define EX01         /* Example Code C Basics*/
-//#define EX02         /* Example Code LCD */
-//#define EX03         /* Example Code Timer Interrupts */
-//#define EX04         /* Example Code Timer Interrupts */
-//#define EX05         /* Example Code FreeRTOS Tasks */
-//#define EX06         /* Example Code FreeRTOS Tasks */
-//#define EX08         /* Example Code FreeRTOS LCD Gatekeeper */
+ * Only a single line should be uncommented at one time.
+ */
+// #define EX01         /* Example Code C Basics*/
+// #define EX02         /* Example Code LCD */
+// #define EX03         /* Example Code Timer Interrupts */
+// #define EX04         /* Example Code Timer Interrupts */
+// #define EX05         /* Example Code FreeRTOS Tasks */
+// #define EX06         /* Example Code FreeRTOS Tasks */
+// #define EX08         /* Example Code FreeRTOS LCD Gatekeeper */
 
-//#define ICE01       /* In-Class Exercise -- Memory Mapped IO - GPIO */
-//#define ICE02       /* In-Class Exercise -- LCD 8080 Driver */
-//#define ICE03       /* In-Class Exercise -- Timer Interrupts/Debounce Buttons */
-//#define ICE04       /* In-Class Exercise -- PWM Buzzer */
-//#define ICE05       /* In-Class Exercise -- FreeRTOS Event Groups */
-//#define ICE06       /* In-Class Exercise -- FreeRTOS Queues */
-//#define ICE08       /* In-Class Exercise -- FreeRTOS LCD Gatekeeper */
-//#define ICE09       /* In-Class Exercise -- FreeRTOS UART Rx IRQ + Buffering  */
-//#define ICE10       /* In-Class Exercise -- FreeRTOS UART Tx IRQ + Buffering  */
+// #define ICE01       /* In-Class Exercise -- Memory Mapped IO - GPIO */
+// #define ICE02       /* In-Class Exercise -- LCD 8080 Driver */
+// #define ICE03       /* In-Class Exercise -- Timer Interrupts/Debounce Buttons */
+// #define ICE04       /* In-Class Exercise -- PWM Buzzer */
+// #define ICE05       /* In-Class Exercise -- FreeRTOS Event Groups */
+// #define ICE06       /* In-Class Exercise -- FreeRTOS Queues */
+// #define ICE08       /* In-Class Exercise -- FreeRTOS LCD Gatekeeper */
+// #define ICE09       /* In-Class Exercise -- FreeRTOS UART Rx IRQ + Buffering  */
+// #define ICE10       /* In-Class Exercise -- FreeRTOS UART Tx IRQ + Buffering  */
+#define ICE11 /* In-Class Exercise -- I2C Temperature Sensor */
 
-//#define HW01
-#define HW02
-//#define HW03
+// #define HW01
+// #define HW02
+// #define HW03
 
 extern char NAME[];
 extern char APP_DESCRIPTION[];
 
 /**
- * @brief 
+ * @brief
  * This function will initialize all of the hardware resources for
- * the ICE.  
- * 
+ * the ICE.
+ *
  * This function is implemented in the iceXX.c file for the ICE you are
  * working on.
  */
@@ -81,10 +82,10 @@ void app_init_hw(void);
 /* Application Code                                                          */
 /*****************************************************************************/
 /**
- * @brief 
+ * @brief
  * This function implements the behavioral requirements for the ICE
- * 
- * This function is implemented in the iceXX.c file for the ICE you are 
+ *
+ * This function is implemented in the iceXX.c file for the ICE you are
  * working on.
  */
 void app_main(void);

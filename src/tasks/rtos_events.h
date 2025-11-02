@@ -24,12 +24,9 @@ extern EventGroupHandle_t ECE353_RTOS_Events;
 * Macros used to define the system events
 ******************************************************************************/
 //define macros used to test SW1, SW2, and SW3 events. To be used with FreeRTOS event groups
-#define SW1_PRESSED    (1 << 0)  // Event bit for SW1 pressed
-#define SW2_PRESSED    (1 << 1)  // Event bit for SW2 pressed
-#define SW3_PRESSED    (1 << 2)  // Event bit for SW3 pressed
-
-
-
+#define ECE353_RTOS_EVENTS_SW1 (1 << 0)  // Event bit for SW1 pressed
+#define ECE353_RTOS_EVENTS_SW2 (1 << 1)  // Event bit for SW2 pressed
+#define ECE353_RTOS_EVENTS_SW3 (1 << 2)  // Event bit for SW3 pressed
 
 #endif // ECE353_FREERTOS
 
