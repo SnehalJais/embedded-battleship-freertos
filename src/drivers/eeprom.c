@@ -26,7 +26,7 @@ void eeprom_wait_for_write(cyhal_spi_t *spi_obj, cyhal_gpio_t cs_pin)
 		uint8_t tx_buffer[2];
 		uint8_t rx_buffer[2];
 		tx_buffer[0] = EEPROM_CMD_RDSR; // Read Status Register command
-		tx_buffer[1] = 0xFF; // Dummy
+		tx_buffer[1] = 0xFF;			// Dummy
 
 		// Assert CS pin
 		cyhal_gpio_write(cs_pin, 0);
@@ -108,7 +108,7 @@ void eeprom_write_byte(cyhal_spi_t *spi_obj, cyhal_gpio_t cs_pin, uint16_t addre
 
 	// Transmit data over SPI
 	cyhal_spi_transfer(spi_obj, tx_buffer, 4, NULL, 4, 0xFF);
-	
+
 	// De-assert CS pin
 	cyhal_gpio_write(cs_pin, 1);
 
@@ -123,8 +123,8 @@ void eeprom_write_byte(cyhal_spi_t *spi_obj, cyhal_gpio_t cs_pin, uint16_t addre
  */
 uint8_t eeprom_read_byte(cyhal_spi_t *spi_obj, cyhal_gpio_t cs_pin, uint16_t address)
 {
-	uint64_t tx_buffer[3];
-	uint64_t rx_buffer[3];
+	uint8_t tx_buffer[4];
+	uint8_t rx_buffer[4];
 
 	tx_buffer[0] = EEPROM_CMD_READ;		  // Read command
 	tx_buffer[1] = (address >> 8) & 0xFF; // High byte of address
