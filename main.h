@@ -62,11 +62,12 @@
 // #define ICE09       /* In-Class Exercise -- FreeRTOS UART Rx IRQ + Buffering  */
 // #define ICE10       /* In-Class Exercise -- FreeRTOS UART Tx IRQ + Buffering  */
 // #define ICE11       /* In-Class Exercise -- I2C Temperature Sensor */
-#define ICE12          /* In-Class Exercise -- SPI EEPROM */
+//#define ICE12          /* In-Class Exercise -- SPI EEPROM */
 
 // #define HW01
 // #define HW02
 // #define HW03
+ #define HW04
 
 extern char NAME[];
 extern char APP_DESCRIPTION[];
