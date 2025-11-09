@@ -70,7 +70,7 @@ void task_io_expander(void *param)
 {
 	uint32_t read_value = 0;
 
-	printf("Starting IO Expander Task\r\n");
+	task_console_printf("Starting IO Expander Task\r\n");
 
 	while (1)
 	{

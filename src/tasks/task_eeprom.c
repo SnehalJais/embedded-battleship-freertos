@@ -152,6 +152,8 @@ void task_eeprom(void *arg)
     device_request_msg_t request_packet;
     device_response_msg_t response_packet;
 
+    task_console_printf("Starting EEPROM Task\r\n");
+
     while (1)
     {
         // Wait for a request from the EEPROM queue

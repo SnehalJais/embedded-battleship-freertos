@@ -132,7 +132,7 @@ void app_init_hw(void)
     }
 
     /* Initialize the spi interface */
-    SPI_Obj = spi_init(PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CLK);
+    SPI_Obj = spi_init(PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_SCK);
     if (SPI_Obj == NULL)
     {
         printf("SPI initialization failed!\n\r");
@@ -141,10 +141,8 @@ void app_init_hw(void)
     }
 
     /* Configure the chip select pins for the EEPROM and IMU*/
-    cyhal_gpio_init(PIN_EEPROM_CS_N, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, true);
-    cyhal_gpio_init(PIN_IMU_CS_N, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, true);
-
-
+    cyhal_gpio_init(PIN_EEPROM_CS, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, true);
+    cyhal_gpio_init(PIN_IMU_CS, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, true);
 }
 /*****************************************************************************/
 /* Application Code                                                          */
@@ -184,14 +182,14 @@ void app_main(void)
         CY_ASSERT(0);
     }
 
-    if(!task_eeprom_resources_init(&Semaphore_SPI, SPI_Obj, PIN_EEPROM_CS_N))
+    if(!task_eeprom_resources_init(&Semaphore_SPI, SPI_Obj, PIN_EEPROM_CS))
     {
         printf("EEPROM Task initialization failed!\n\r");
         for(int i = 0; i < 10000; i++);
         CY_ASSERT(0);
     }
 
-    if(!task_imu_resources_init(&Semaphore_SPI, SPI_Obj, PIN_IMU_CS_N))
+    if(!task_imu_resources_init(&Semaphore_SPI, SPI_Obj, PIN_IMU_CS))
     {
         printf("IMU Task initialization failed!\n\r");
         for(int i = 0; i < 10000; i++);

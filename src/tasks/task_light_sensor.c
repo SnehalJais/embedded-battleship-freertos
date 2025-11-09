@@ -153,12 +153,12 @@ void task_light_sensor(void *param)
     device_request_msg_t request_packet;
     device_response_msg_t response_packet;
 
-    printf("Starting Light Sensor Task\r\n");
+    task_console_printf("Starting Light Sensor Task\r\n");
 
     uint8_t manufac_id = ltr_light_sensor_manufac_id();
     if (manufac_id != 0x05)
     {
-        printf("Light Sensor Manufacturer ID Invalid: 0x%02X\r\n", manufac_id);
+        task_console_printf("Light Sensor Manufacturer ID Invalid: 0x%02X\r\n", manufac_id);
         vTaskSuspend(NULL);
     }
     else

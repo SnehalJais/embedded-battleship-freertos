@@ -140,7 +140,18 @@ void task_console_printf(char *str_ptr, ...)
     va_list args;
 
     /* ADD CODE */
-    /* Allocate the message buffer */
+    /* Allocate memory for the message buffer */
+    /* If the message buffer is NULL, this means the heap is exhausted */
+    /* We will placed the calling task into the blocked state which should */
+    /* allow other tasks (task_console_tx) to run and free up memory after */
+    /* it has transmitted previous messages. Once memory is available, the */
+    /* calling task will be unblocked and can try to allocate memory again. */
+    do {
+        message_buffer = pvPortMalloc(CONSOLE_MAX_MESSAGE_LENGTH);
+        vTaskDelay(pdMS_TO_TICKS(10)); // Delay to avoid busy waiting
+    } while (message_buffer == NULL);
+    
+    console_buffer = pvPortMalloc(sizeof(console_buffer_t));
 
     if (message_buffer && console_buffer)
     {
