@@ -28,7 +28,7 @@
  *
  * @param - None
  */
-cyhal_i2c_t * i2c_init(cyhal_gpio_t sda, cyhal_gpio_t);
+cyhal_i2c_t * i2c_init(cyhal_gpio_t sda, cyhal_gpio_t scl);
 
 /**
  * @brief 

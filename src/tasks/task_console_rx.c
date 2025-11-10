@@ -35,7 +35,7 @@ console_buffer_t console_buffer2;
 QueueHandle_t xQueue_Console_Rx;
 
 // External reference to the system control response queue
-extern QueueHandle_t Queue_System_Control_Responses;
+QueueHandle_t Queue_System_Control_Responses;
 
 // Pointers to the produce and consume buffers
 console_buffer_t *produce_console_buffer;
@@ -162,7 +162,7 @@ void task_console_rx(void *param)
                     {
                         // Convert uint16_t to signed int16_t for proper negative value display
                         int16_t x = (int16_t)imu_data[0];
-                        int16_t y = (int16_t)imu_data[1]; 
+                        int16_t y = (int16_t)imu_data[1];
                         int16_t z = (int16_t)imu_data[2];
                         task_console_printf("IMU Data: X=%d, Y=%d, Z=%d\r\n", x, y, z);
                     }

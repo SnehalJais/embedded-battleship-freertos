@@ -50,7 +50,7 @@
 // #define EX06         /* Example Code FreeRTOS Tasks */
 // #define EX08         /* Example Code FreeRTOS LCD Gatekeeper */
 // #define EX12         /* SPI Communication with EEPROM */
-// #define EX13       /* I2C Communication with Temperature Sensor */
+ #define EX13       /* I2C Communication with Temperature Sensor */
 
 // #define ICE01       /* In-Class Exercise -- Memory Mapped IO - GPIO */
 // #define ICE02       /* In-Class Exercise -- LCD 8080 Driver */
@@ -62,12 +62,12 @@
 // #define ICE09       /* In-Class Exercise -- FreeRTOS UART Rx IRQ + Buffering  */
 // #define ICE10       /* In-Class Exercise -- FreeRTOS UART Tx IRQ + Buffering  */
 // #define ICE11       /* In-Class Exercise -- I2C Temperature Sensor */
-// #define ICE12          /* In-Class Exercise -- SPI EEPROM */
+// #define ICE12       /* In-Class Exercise -- SPI EEPROM */
 
 // #define HW01
 // #define HW02
 // #define HW03
-#define HW05
+//#define HW05
 
 extern char NAME[];
 extern char APP_DESCRIPTION[];
