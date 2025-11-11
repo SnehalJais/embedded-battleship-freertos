@@ -145,17 +145,6 @@ void task_temp_sensor(void *param)
 
 	// Verify that the temp sensor is connected by reading the product ID
 	uint8_t prod_id = LM75_get_product_id();
-	// if (prod_id == LM75_PRODUCT_ID)
-	// {
-	// 	printf("Temp Sensor Detected!\r\n");
-	// }
-	// else
-	// {
-	// 	printf("Temp Sensor NOT Detected! 0x%02X\r\n", prod_id);
-	// 	vTaskDelay(pdMS_TO_TICKS(1000));
-	// 	CY_ASSERT(0);
-	// }
-
 	// give the semaphore back
 	xSemaphoreGive(*I2C_Semaphore);
 

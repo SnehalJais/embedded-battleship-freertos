@@ -18,7 +18,7 @@
 #include "drivers.h"
 #include "devices.h"
 
-#define LTR_SUBORDINATE_ADDR   0x00
+#define LTR_SUBORDINATE_ADDR    0x29
 
 #define LTR_REG_CONTR           0x80
 #define LTR_REG_MEAS_RATE       0x85

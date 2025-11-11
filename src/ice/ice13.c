@@ -1,12 +1,12 @@
 /**
  * @file ex03.c
  * @author Joe Krachey (jkrachey@wisc.edu)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-06-30
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "cyhal_hw_types.h"
 #include "main.h"
@@ -17,7 +17,7 @@
 #include "task_light_sensor.h"
 
 #define TASK_SYSTEM_CONTROL_STACK_SIZE (configMINIMAL_STACK_SIZE * 5)
-#define TASK_SYSTEM_CONTROL_PRIORITY   (tskIDLE_PRIORITY + 1)   
+#define TASK_SYSTEM_CONTROL_PRIORITY (tskIDLE_PRIORITY + 1)
 
 char APP_DESCRIPTION[] = "ECE353: ICE 13 - FreeRTOS Ambient Light Sensor";
 
@@ -42,11 +42,11 @@ void task_system_control(void *arg);
 /*****************************************************************************/
 
 /**
- * @brief 
- * This function will initialize all of the software resources for the 
+ * @brief
+ * This function will initialize all of the software resources for the
  * System Control Task
- * @return true 
- * @return false 
+ * @return true
+ * @return false
  */
 bool task_system_control_resources_init(void)
 {
@@ -73,30 +73,30 @@ bool task_system_control_resources_init(void)
     }
 
     return true;
-}   
+}
 
 void task_system_control(void *arg)
 {
     (void)arg; // Unused parameter
     bool return_status = false;
     uint16_t ambient_light = 0;
-    
+
     task_console_printf("Starting System Control Task\r\n");
 
-    while(1)
+    while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(500));
 
         // Read from the light sensor
         return_status = system_sensors_get_light(Queue_Light_Sensor_Responses, &ambient_light);
-        if(return_status)
+        if (return_status)
         {
             task_console_printf("Ambient Light: %d\n\r", ambient_light);
         }
         else
         {
             task_console_printf("Ambient Light Read Failed!\r\n");
-        }   
+        }
     }
 }
 
@@ -120,7 +120,8 @@ void app_init_hw(void)
     if (I2C_Obj == NULL)
     {
         printf("I2C initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 }
@@ -134,26 +135,29 @@ void app_init_hw(void)
  */
 void app_main(void)
 {
-    if(!task_system_control_resources_init())
+    if (!task_system_control_resources_init())
     {
         printf("System Control Task initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
-    if(!task_console_init())
+    if (!task_console_init())
     {
         printf("Console initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
-    if(!task_light_sensor_resources_init(I2C_Obj, &I2C_Semaphore))
+    if (!task_light_sensor_resources_init(I2C_Obj, &I2C_Semaphore))
     {
         printf("Light Sensor Task initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
-    }   
+    }
 
     /* Start the scheduler*/
     vTaskStartScheduler();
