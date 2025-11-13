@@ -1,12 +1,12 @@
 /**
  * @file hw05.c
  * @author Joe Krachey (jkrachey@wisc.edu)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-06-30
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "cyhal_hw_types.h"
 #include "main.h"
@@ -37,7 +37,7 @@ SemaphoreHandle_t Semaphore_I2C = NULL;
 SemaphoreHandle_t Semaphore_SPI = NULL;
 
 QueueHandle_t Queue_System_Control_Responses = NULL;
-
+QueueHandle_t Queue_Sensor_Responses;
 /*****************************************************************************/
 /* Function Declarations                                                     */
 /*****************************************************************************/
@@ -47,11 +47,11 @@ void task_system_control(void *arg);
 /* Function Definitions                                                      */
 /*****************************************************************************/
 /**
- * @brief 
- * This function will initialize all of the software resources for the 
+ * @brief
+ * This function will initialize all of the software resources for the
  * System Control Task
- * @return true 
- * @return false 
+ * @return true
+ * @return false
  */
 bool task_system_control_resources_init(void)
 {
@@ -69,12 +69,11 @@ bool task_system_control_resources_init(void)
         return false;
     }
 
-
     /* Create the System Control Task */
     if (xTaskCreate(
             task_system_control,
             "System Control Task",
-            configMINIMAL_STACK_SIZE*5,
+            configMINIMAL_STACK_SIZE * 5,
             NULL,
             tskIDLE_PRIORITY + 1,
             NULL) != pdPASS)
@@ -86,9 +85,9 @@ bool task_system_control_resources_init(void)
 }
 
 /**
- * @brief 
- * This function implements the behavioral requirements for the ICE 
- * @param arg 
+ * @brief
+ * This function implements the behavioral requirements for the ICE
+ * @param arg
  */
 void task_system_control(void *arg)
 {
@@ -96,12 +95,12 @@ void task_system_control(void *arg)
     task_console_printf("Starting System Control Task\r\n");
 
     /* Configure the IO Expander*/
-    system_sensors_io_expander_write(NULL, IOXP_ADDR_CONFIG, 0x80); //Set P7 as input, all others as outputs
-    
-    /* Set the initial state of the LEDs*/
-    system_sensors_io_expander_write(NULL, IOXP_ADDR_OUTPUT_PORT, 0x01); //Turn on LED0
+    system_sensors_io_expander_write(NULL, IOXP_ADDR_CONFIG, 0x80); // Set P7 as input, all others as outputs
 
-    while(1)
+    /* Set the initial state of the LEDs*/
+    system_sensors_io_expander_write(NULL, IOXP_ADDR_OUTPUT_PORT, 0x01); // Turn on LED0
+
+    while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(500));
     }
@@ -127,7 +126,8 @@ void app_init_hw(void)
     if (I2C_Obj == NULL)
     {
         printf("I2C initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
@@ -136,7 +136,8 @@ void app_init_hw(void)
     if (SPI_Obj == NULL)
     {
         printf("SPI initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
@@ -154,47 +155,53 @@ void app_init_hw(void)
 void app_main(void)
 {
 
-    if(!task_system_control_resources_init())
+    if (!task_system_control_resources_init())
     {
         printf("System Control Task initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
-    if(!task_console_init())
+    if (!task_console_init())
     {
         printf("Console initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
-    if(!task_io_expander_resources_init(&Semaphore_I2C, I2C_Obj))
+    if (!task_io_expander_resources_init(I2C_Obj, &Semaphore_I2C))
     {
         printf("IO Expander Task initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
-    if(!task_light_sensor_resources_init(&Semaphore_I2C, I2C_Obj))
+    if (!task_light_sensor_resources_init(I2C_Obj, &Semaphore_I2C))
     {
         printf("Light Sensor Task initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
-    if(!task_eeprom_resources_init(&Semaphore_SPI, SPI_Obj, PIN_EEPROM_CS))
+    if (!task_eeprom_resources_init(&Semaphore_SPI, SPI_Obj, PIN_EEPROM_CS))
     {
         printf("EEPROM Task initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
     }
 
-    if(!task_imu_resources_init(&Semaphore_SPI, SPI_Obj, PIN_IMU_CS))
+    if (!task_imu_resources_init(&Semaphore_SPI, SPI_Obj, PIN_IMU_CS))
     {
         printf("IMU Task initialization failed!\n\r");
-        for(int i = 0; i < 10000; i++);
+        for (int i = 0; i < 10000; i++)
+            ;
         CY_ASSERT(0);
-    }   
+    }
 
     /* Start the scheduler*/
     vTaskStartScheduler();

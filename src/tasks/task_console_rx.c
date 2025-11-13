@@ -16,6 +16,7 @@
 #include "devices.h"
 #include "task_eeprom.h"
 #include "task_imu.h"
+#include "task_light_sensor.h"
 #include "cyhal_uart.h"
 /**
  * @brief
@@ -28,14 +29,14 @@
  */
 
 /* ADD CODE */
-/* Global Variables */
+/* Global Vexariables */
 console_buffer_t console_buffer1;
 console_buffer_t console_buffer2;
 
 QueueHandle_t xQueue_Console_Rx;
 
 // External reference to the system control response queue
-QueueHandle_t Queue_System_Control_Responses;
+extern QueueHandle_t Queue_Sensor_Responses;
 
 // Pointers to the produce and consume buffers
 console_buffer_t *produce_console_buffer;
@@ -61,13 +62,7 @@ void task_console_rx(void *param)
 
     while (1)
     {
-        /* ADD CODE */
-        // wait indefinitely for a task notification
-        //  printf("DEBUG: Console RX task waiting for notification...\n\r");
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-        // Add newline to separate command input from response
-        printf("\r\n");
 
         // processthe data pointed to by the console buffer pointer
         // if "RED_ON" turn on red LED
@@ -100,21 +95,24 @@ void task_console_rx(void *param)
 
                     if (addr_str != NULL && value_str != NULL)
                     {
-                        uint16_t address = (uint16_t)strtol(addr_str, NULL, 0);
-                        uint8_t value = (uint8_t)strtol(value_str, NULL, 0);
+                        uint8_t addr = (uint8_t)strtol(addr_str, NULL, 16);   // hex
+                        uint8_t value = (uint8_t)strtol(value_str, NULL, 16); // hex
 
                         // Call EEPROM write function
-                        if (system_sensors_eeprom_write(Queue_System_Control_Responses, address, value))
+                        if (system_sensors_eeprom_write(Queue_Sensor_Responses, addr, value))
                         {
-                            task_console_printf("EEPROM Write: Addr=0x%04X, Value=0x%02X - Success\r\n", address, value);
+                            printf("\r\n");
+                            task_console_printf("EEPROM Write: Addr=0x%04X, Value=0x%02X", addr, value);
                         }
                         else
                         {
-                            task_console_printf("EEPROM Write Failed: Addr=0x%04X, Value=0x%02X\r\n", address, value);
+                            printf("\r\n");
+                            task_console_printf("EEPROM Write Failed: Addr=0x%04X, Value=0x%02X\r\n", addr, value);
                         }
                     }
                     else
                     {
+                        printf("\r\n");
                         task_console_printf("Usage: EEPROM w <address> <value>\r\n");
                     }
                 }
@@ -129,22 +127,26 @@ void task_console_rx(void *param)
                         uint8_t data = 0;
 
                         // Call EEPROM read function
-                        if (system_sensors_eeprom_read(Queue_System_Control_Responses, address, &data))
+                        if (system_sensors_eeprom_read(Queue_Sensor_Responses, address, &data))
                         {
+                            printf("\r\n");
                             task_console_printf("EEPROM Read: Addr=0x%04X Value=0x%02X\r\n", address, data);
                         }
                         else
                         {
+                            printf("\r\n");
                             task_console_printf("EEPROM Read Failed: Addr=0x%04X\r\n", address);
                         }
                     }
                     else
                     {
+                        printf("\r\n");
                         task_console_printf("Usage: EEPROM r <address>\r\n");
                     }
                 }
                 else
                 {
+                    printf("\r\n");
                     task_console_printf("Usage: EEPROM [w|r] <address> [value]\r\n");
                 }
             }
@@ -158,22 +160,109 @@ void task_console_rx(void *param)
                     uint16_t imu_data[3]; // X, Y, Z accelerometer data
 
                     // Call IMU read function
-                    if (system_sensors_imu_read(Queue_System_Control_Responses, imu_data))
+                    if (system_sensors_imu_read(Queue_Sensor_Responses, imu_data))
                     {
                         // Convert uint16_t to signed int16_t for proper negative value display
                         int16_t x = (int16_t)imu_data[0];
                         int16_t y = (int16_t)imu_data[1];
                         int16_t z = (int16_t)imu_data[2];
+                        printf("\r\n");
                         task_console_printf("IMU Data: X=%d, Y=%d, Z=%d\r\n", x, y, z);
                     }
                     else
                     {
+                        printf("\r\n");
                         task_console_printf("IMU Read Failed\r\n");
                     }
                 }
                 else
                 {
+                    printf("\r\n");
                     task_console_printf("Usage: IMU [r]\r\n");
+                }
+            }
+            else if (token != NULL && (strcmp(token, "LIGHT") == 0 || strcmp(token, "light") == 0))
+            {
+                // Parse LIGHT commands: "LIGHT r" or just "LIGHT" (read ambient light)
+                char *operation = strtok(NULL, " ");
+                if (operation == NULL || strcmp(operation, "r") == 0)
+                {
+                    // Read command: LIGHT r or just LIGHT
+                    uint16_t ambient_light = 0;
+
+                    // Call light sensor read function
+                    if (system_sensors_get_light(Queue_Sensor_Responses, &ambient_light))
+                    {
+                        printf("\r\n");
+                        task_console_printf("Light Sensor: %d\r\n", ambient_light);
+                    }
+                    else
+                    {
+                        printf("\r\n");
+                        task_console_printf("Light Sensor Read Failed\r\n");
+                    }
+                }
+                else
+                {
+                    printf("Usage: LIGHT [r]\r\n");
+                }
+            }
+            // do an else if for IO EXPANDER
+            else if (token != NULL && (strcmp(token, "IOEXP") == 0 || strcmp(token, "ioexp") == 0))
+            {
+                // Parse IOEXP commands: "IOEXP r <address>" or "IOEXP w <address> <value>"
+                char *operation = strtok(NULL, " ");
+                if (operation != NULL && strcmp(operation, "w") == 0)
+                {
+                    // Write command: IOEXP w <address> <value>
+                    char *addr_str = strtok(NULL, " ");
+                    char *value_str = strtok(NULL, " ");
+
+                    if (addr_str != NULL && value_str != NULL)
+                    {
+                        uint8_t address = (uint8_t)strtol(addr_str, NULL, 16);
+                        uint8_t value = (uint8_t)strtol(value_str, NULL, 16);
+
+                        // Call IO Expander write function
+                        if (system_sensors_io_expander_write(Queue_Sensor_Responses, address, value))
+                        {
+                            printf("\r\n");
+                            task_console_printf("IO Expander Write: Addr=0x%02X, Value=0x%02X", address, value);
+                        }
+                        else
+                        {
+                            printf("\r\n");
+                            task_console_printf("IO Expander Write Failed: Addr=0x%02X, Value=0x%02X\r\n", address, value);
+                        }
+                    }
+                    else
+                    {
+                        printf("\r\n");
+                        task_console_printf("Usage: IOEXP w <address> <value>\r\n");
+                    }
+                }
+                else if (operation != NULL && strcmp(operation, "r") == 0)
+                {
+                    // Read command: IOEXP r <address>
+                    char *addr_str = strtok(NULL, " ");
+
+                    if (addr_str != NULL)
+                    {
+                        uint8_t address = (uint8_t)strtol(addr_str, NULL, 0);
+                        uint8_t data = 0;
+
+                        // Call IO Expander read function
+                        if (system_sensors_io_expander_read(Queue_Sensor_Responses, address, &data))
+                        {
+                            printf("\r\n");
+                            task_console_printf("IO Expander Read: Addr=0x%02X Value=0x%02X\r\n", address, data);
+                        }
+                        else
+                        {
+                            printf("\r\n");
+                            task_console_printf("IO Expander Read Failed: Addr=0x%02X\r\n", address);
+                        }
+                    }
                 }
             }
             else
@@ -196,8 +285,8 @@ bool task_console_resources_init_rx(void)
 
     /* ADD CODE */
     // Create the System Control Response Queue for gatekeeper communication
-    Queue_System_Control_Responses = xQueueCreate(10, sizeof(device_response_msg_t));
-    if (Queue_System_Control_Responses == NULL)
+    Queue_Sensor_Responses = xQueueCreate(10, sizeof(device_response_msg_t));
+    if (Queue_Sensor_Responses == NULL)
     {
         return false;
     }

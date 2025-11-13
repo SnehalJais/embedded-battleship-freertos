@@ -17,7 +17,7 @@
 #include "devices.h"
 
 #define TASK_IO_EXPANDER_STACK_SIZE (configMINIMAL_STACK_SIZE)
-#define TASK_IO_EXPANDER_PRIORITY   (tskIDLE_PRIORITY + 1)
+#define TASK_IO_EXPANDER_PRIORITY (tskIDLE_PRIORITY + 1)
 
 /******************************************************************************/
 /* Function Declarations                                                      */
@@ -44,9 +44,14 @@ QueueHandle_t Queue_IO_Expander_Requests;
 
 bool system_sensors_io_expander_write(QueueHandle_t return_queue, uint8_t address, uint8_t value)
 {
+	cy_rslt_t rslt;
 	bool status = true;
 
-	/* ADD CODE */
+	rslt = i2c_write_u8(I2C_Obj, TCA9534_SUBORDINATE_ADDR, address, value);
+	if (rslt != CY_RSLT_SUCCESS)
+	{
+		status = false;
+	}
 
 	return status;
 }
@@ -54,8 +59,13 @@ bool system_sensors_io_expander_write(QueueHandle_t return_queue, uint8_t addres
 bool system_sensors_io_expander_read(QueueHandle_t return_queue, uint8_t address, uint8_t *value)
 {
 	bool status = true;
+	cy_rslt_t rslt;
 
-	/* ADD CODE */
+	rslt = i2c_read_u8(I2C_Obj, TCA9534_SUBORDINATE_ADDR, address, value);
+	if (rslt != CY_RSLT_SUCCESS)
+	{
+		status = false;
+	}
 
 	return status;
 }
@@ -74,7 +84,38 @@ void task_io_expander(void *param)
 
 	while (1)
 	{
-		/* ADD CODE */
+		device_request_msg_t request_packet;
+		device_response_msg_t response_packet;
+
+		// wait for a request packet
+		if (xQueueReceive(Queue_IO_Expander_Requests, &request_packet, portMAX_DELAY) == pdTRUE)
+		{
+			// grab the semaphore to access the bus
+			xSemaphoreTake(*I2C_Semaphore, portMAX_DELAY);
+
+			if (request_packet.operation == DEVICE_OP_WRITE)
+			{
+				system_sensors_io_expander_write(request_packet.response_queue, request_packet.address, request_packet.value);
+			}
+			else if (request_packet.operation == DEVICE_OP_READ)
+			{
+				system_sensors_io_expander_read(request_packet.response_queue, request_packet.address, (uint8_t *)&read_value);
+
+				// prepare the response packet
+				response_packet.device = DEVICE_IO_EXP;
+				response_packet.status = DEVICE_OPERATION_STATUS_READ_SUCCESS;
+				response_packet.payload.io_expander = (uint8_t)read_value;
+
+				// send the response back if a return queue is provided
+				if (request_packet.response_queue != NULL)
+				{
+					xQueueSend(request_packet.response_queue, &response_packet, portMAX_DELAY);
+				}
+			}
+
+			// release the semaphore for the I2C bus
+			xSemaphoreGive(*I2C_Semaphore);
+		}
 	}
 }
 
@@ -102,19 +143,19 @@ bool task_io_expander_resources_init(cyhal_i2c_t *i2c_obj, SemaphoreHandle_t *i2
 	}
 
 	/* Create the task that will control the status LED */
-	if(xTaskCreate(
-		task_io_expander,
-		"Task IO Exp",
-		TASK_IO_EXPANDER_STACK_SIZE,
-		i2c_semaphore,
-		TASK_IO_EXPANDER_PRIORITY,
-		NULL) != pdPASS)
+	if (xTaskCreate(
+			task_io_expander,
+			"Task IO Exp",
+			TASK_IO_EXPANDER_STACK_SIZE,
+			i2c_semaphore,
+			TASK_IO_EXPANDER_PRIORITY,
+			NULL) != pdPASS)
 	{
 		return false;
 	}
-	else 
+	else
 	{
 		return true;
-	}	
-}	
+	}
+}
 #endif

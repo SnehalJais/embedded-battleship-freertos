@@ -65,7 +65,6 @@ void console_event_handler(void *handler_arg, cyhal_uart_event_t event)
                 consume_console_buffer = temp;
                 // set index to 0 again
                 produce_console_buffer->index = 0;
-
                 // Send the task notification to the bottom half task
                 // printf("DEBUG ISR: Sending notification to console task\n\r");
                 vTaskNotifyGiveFromISR(TaskHandle_Console_Rx, &xHigherPriorityTaskWoken);

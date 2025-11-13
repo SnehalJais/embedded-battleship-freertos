@@ -33,7 +33,10 @@ static cyhal_i2c_t *I2C_Obj;
 static SemaphoreHandle_t *I2C_Semaphore = NULL;
 
 /* Queue used to send commands used to light sensor */
+// Definition of the queue handle used by other modules to send requests
+// to the light sensor task. Declared `extern` in `task_light_sensor.h`.
 QueueHandle_t Queue_Light_Sensor_Requests;
+
 
 /******************************************************************************/
 /* Static Function Definitions                                                */
@@ -49,7 +52,7 @@ static void ltr_light_sensor_start(void)
     rslt = i2c_write_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_CONTR, LTR_REG_CONTR_ALS_MODE); // 1,2,3 byte in order
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to write to CONTR register\r\n");
+        task_console_printf("LTR329ALS-01: Failed to write to CONTR register\r\n");
     }
 }
 
@@ -61,7 +64,7 @@ static uint8_t ltr_light_get_contr(void)
     rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_CONTR, (uint16_t *)&value);
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read CONTR register\r\n");
+        task_console_printf("LTR329ALS-01: Failed to read CONTR register\r\n");
         return value;
     }
 
@@ -76,10 +79,9 @@ static uint8_t ltr_light_sensor_status(void)
     rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_ALS_STATUS, (uint16_t *)&value);
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read STATUS register\r\n");
+        task_console_printf("LTR329ALS-01: Failed to read STATUS register\r\n");
         return value;
     }
-    
 
     return value;
 }
@@ -97,7 +99,7 @@ static uint8_t ltr_light_sensor_part_id(void)
     rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_PART_ID, (uint16_t *)&value);
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read PART ID register\r\n");
+        task_console_printf("LTR329ALS-01: Failed to read PART ID register\r\n");
         return value;
     }
 
@@ -112,8 +114,8 @@ static uint8_t ltr_light_sensor_manufac_id(void)
     rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_MANUFAC_ID, (uint16_t *)&value);
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read MANUFAC ID register\r\n");
-        return value;   
+        task_console_printf("LTR329ALS-01: Failed to read MANUFAC ID register\r\n");
+        return value;
     }
 
     return value;
@@ -127,19 +129,19 @@ static uint16_t ltr_light_sensor_get_ch0(void)
     cy_rslt_t rslt;
 
     rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_ALS_DATA_CH0_0, &lsbyte);
-    if (rslt != CY_RSLT_SUCCESS)    
+    if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read CH0 LSByte register\r\n");
-        return value;   
+        task_console_printf("LTR329ALS-01: Failed to read CH0 LSByte register\r\n");
+        return value;
     }
     rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_ALS_DATA_CH0_1, &msbyte);
-    if (rslt != CY_RSLT_SUCCESS)    
+    if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read CH0 MSByte register\r\n");
-        return value;   
+        task_console_printf("LTR329ALS-01: Failed to read CH0 MSByte register\r\n");
+        return value;
     }
 
-    value = (msbyte << 8) | lsbyte; 
+    value = (msbyte << 8) | lsbyte;
 
     return value;
 }
@@ -151,18 +153,18 @@ static uint16_t ltr_light_sensor_get_ch1(void)
     uint16_t value = 0;
     cy_rslt_t rslt;
 
-    rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_ALS_DATA_CH1_0,&lsbyte);
-    if (rslt != CY_RSLT_SUCCESS)    
+    rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_ALS_DATA_CH1_0, &lsbyte);
+    if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read CH1 LSByte register\r\n");
-        return value;   
+        task_console_printf("LTR329ALS-01: Failed to read CH1 LSByte register\r\n");
+        return value;
     }
 
     rslt = i2c_read_u8(I2C_Obj, LTR_SUBORDINATE_ADDR, LTR_REG_ALS_DATA_CH1_1, &msbyte);
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("LTR329ALS-01: Failed to read CH1 MSByte register\r\n");
-        return value;   
+        task_console_printf("LTR329ALS-01: Failed to read CH1 MSByte register\r\n");
+        return value;
     }
 
     value = (msbyte << 8) | lsbyte;
@@ -198,23 +200,23 @@ bool system_sensors_get_light(QueueHandle_t return_queue, uint16_t *ambient_ligh
     bool status = false;
     device_request_msg_t request_packet;
     device_response_msg_t response_packet;
-    
+
     if (return_queue == NULL || ambient_light == NULL)
     {
         return false;
     }
 
-    //fill out the request packet
+    // fill out the request packet
     request_packet.device = DEVICE_LIGHT;
     request_packet.operation = DEVICE_OP_READ;
     request_packet.response_queue = return_queue;
 
-    //send the request to the light sensor task
+    // send the request to the light sensor task
     xQueueSend(Queue_Light_Sensor_Requests, &request_packet, portMAX_DELAY);
 
     xQueueReceive(return_queue, &response_packet, pdMS_TO_TICKS(100));
 
-    //return the ambient light value via the data pointer
+    // return the ambient light value via the data pointer
     *ambient_light = response_packet.payload.light_sensor;
 
     if (response_packet.status == DEVICE_OPERATION_STATUS_READ_SUCCESS)
@@ -250,7 +252,7 @@ void task_light_sensor(void *param)
     }
     else
     {
-        printf("Light Sensor Manufacturer ID Valid: 0x%02X\r\n", manufac_id);
+        task_console_printf("Light Sensor Manufacturer ID Valid: 0x%02X\r\n", manufac_id);
     }
 
     // grab the semaphore to access the bus
@@ -268,25 +270,24 @@ void task_light_sensor(void *param)
         {
             if (request_packet.operation == DEVICE_OP_READ)
             {
-                //grab the semaphore for the I2C bus
+                // grab the semaphore for the I2C bus
                 xSemaphoreTake(*I2C_Semaphore, portMAX_DELAY);
 
-                //prepare the response packet
+                // prepare the response packet
                 response_packet.device = DEVICE_LIGHT;
                 response_packet.status = DEVICE_OPERATION_STATUS_READ_SUCCESS;
                 response_packet.payload.light_sensor = ltr_light_sensor_get_ch0(); // Return channel 0 as ambient light
-                
+
                 // release the semaphore for the I2C bus
                 xSemaphoreGive(*I2C_Semaphore);
-                //send the response back if a return queue is provided
+                // send the response back if a return queue is provided
                 if (request_packet.response_queue != NULL)
                 {
                     xQueueSend(request_packet.response_queue, &response_packet, portMAX_DELAY);
                 }
-      
             }
         }
-    }    
+    }
 }
 
 /**
