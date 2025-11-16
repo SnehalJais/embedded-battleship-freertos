@@ -215,7 +215,7 @@ void task_eeprom(void *arg)
  * @return true
  * @return false
  */
-bool task_eeprom_resources_init(SemaphoreHandle_t *spi_semaphore, cyhal_spi_t *spi_obj, cyhal_gpio_t cs_pin)
+bool task_eeprom_resources_init(cyhal_spi_t *spi_obj, SemaphoreHandle_t *spi_semaphore, cyhal_gpio_t cs_pin)
 {
     if (spi_semaphore == NULL || spi_obj == NULL || cs_pin == NC)
     {

@@ -38,6 +38,7 @@ SemaphoreHandle_t Semaphore_SPI = NULL;
 
 QueueHandle_t Queue_System_Control_Responses = NULL;
 QueueHandle_t Queue_Sensor_Responses;
+
 /*****************************************************************************/
 /* Function Declarations                                                     */
 /*****************************************************************************/
@@ -187,7 +188,7 @@ void app_main(void)
         CY_ASSERT(0);
     }
 
-    if (!task_eeprom_resources_init(&Semaphore_SPI, SPI_Obj, PIN_EEPROM_CS))
+    if (!task_eeprom_resources_init(SPI_Obj, &Semaphore_SPI, PIN_EEPROM_CS))
     {
         printf("EEPROM Task initialization failed!\n\r");
         for (int i = 0; i < 10000; i++)
@@ -195,7 +196,7 @@ void app_main(void)
         CY_ASSERT(0);
     }
 
-    if (!task_imu_resources_init(&Semaphore_SPI, SPI_Obj, PIN_IMU_CS))
+    if (!task_imu_resources_init(SPI_Obj, &Semaphore_SPI, PIN_IMU_CS))
     {
         printf("IMU Task initialization failed!\n\r");
         for (int i = 0; i < 10000; i++)

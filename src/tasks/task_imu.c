@@ -35,7 +35,7 @@ static cyhal_gpio_t imu_cs_pin = NC;
  * @return true
  * @return false
  */
-bool task_imu_resources_init(void *spi_semaphore, cyhal_spi_t *spi_obj, cyhal_gpio_t cs_pin)
+bool task_imu_resources_init(cyhal_spi_t *spi_obj, void *spi_semaphore, cyhal_gpio_t cs_pin)
 {
   SPI_Semaphore = (SemaphoreHandle_t *)spi_semaphore;
   imu_spi_obj = spi_obj;
@@ -83,8 +83,7 @@ void task_imu(void *arg)
   }
   else
   {
-    
-  }
+    }
 
   // give the SPI semaphore after initializing the IMU
   xSemaphoreGive(*SPI_Semaphore);
