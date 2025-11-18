@@ -37,7 +37,6 @@ static SemaphoreHandle_t *I2C_Semaphore = NULL;
 // to the light sensor task. Declared `extern` in `task_light_sensor.h`.
 QueueHandle_t Queue_Light_Sensor_Requests;
 
-
 /******************************************************************************/
 /* Static Function Definitions                                                */
 /******************************************************************************/
@@ -293,7 +292,7 @@ void task_light_sensor(void *param)
 /**
  * @brief
  * Initializes software resources related to the operation of
- * the Temp Sensor.  This function expects that the I2C bus had already
+ * the Light Sensor.  This function expects that the I2C bus had already
  * been initialized prior to the start of FreeRTOS.
  */
 bool task_light_sensor_resources_init(cyhal_i2c_t *i2c_obj, SemaphoreHandle_t *i2c_semaphore)
@@ -315,7 +314,7 @@ bool task_light_sensor_resources_init(cyhal_i2c_t *i2c_obj, SemaphoreHandle_t *i
         return false;
     }
 
-    /* Create the task that will control the status LED */
+    /* Create the task that will handle light sensor requests */
     if (xTaskCreate(
             task_light_sensor,
             "Light Sensor",

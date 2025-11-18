@@ -469,3 +469,14 @@
 164	1219	7849555986559212	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/homework/hw5/hw05.o	218f4c7ec48e1d6d
 169	1521	7849555986600314	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/tasks/task_console_rx.o	b409a599212d4bdb
 1523	2063	7849556000170314	build/ece353/Debug/mtb-example-ce240786-empty-app.elf	4d12dc13d7f64c75
+3040	3655	7851391834611416	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/homework/hw5/hw05.o	218f4c7ec48e1d6d
+3655	6673	7851391840763487	build/ece353/Debug/mtb-example-ce240786-empty-app.elf	4d12dc13d7f64c75
+49	594	7851394914737535	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/homework/hw5/hw05.o	218f4c7ec48e1d6d
+595	982	7851394920185428	build/ece353/Debug/mtb-example-ce240786-empty-app.elf	4d12dc13d7f64c75
+5547	6699	7851864606235950	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/tasks/task_imu.o	6c7b3ec598816d19
+5553	6719	7851864606302970	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/tasks/task_io_expander.o	ba773ecc131a6305
+5561	6719	7851864606372230	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/tasks/task_light_sensor.o	177278dee3f55ee1
+5538	6960	7851864606148156	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/tasks/task_console_rx.o	b409a599212d4bdb
+6961	13020	7851864620380162	build/ece353/Debug/mtb-example-ce240786-empty-app.elf	4d12dc13d7f64c75
+239	1427	7851888050273832	C:/Users/Snehal/ece353/ece353-f25-sjaiswal7/build/Debug/local/src/tasks/task_console_rx.o	b409a599212d4bdb
+1428	1911	7851888062150655	build/ece353/Debug/mtb-example-ce240786-empty-app.elf	4d12dc13d7f64c75

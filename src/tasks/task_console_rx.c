@@ -22,14 +22,13 @@
  * @brief
  * This file contains the implementation of the console receive (Rx) task.
  * The task is responsible for processing incoming console commands and
- * controlling the state of the LEDs accordingly.
+ * controlling hardware devices and LEDs.
  *
  * The task uses a double buffer to process the incoming console commands.
- * The supported commands will be "RED_ON" and "RED_OFF" to control the red LED.
+ * Supported commands: RED_ON, RED_OFF, EEPROM, IMU, LIGHT, IOEXP
  */
 
-/* ADD CODE */
-/* Global Vexariables */
+/* Global Variables */
 console_buffer_t console_buffer1;
 console_buffer_t console_buffer2;
 
@@ -64,7 +63,7 @@ void task_console_rx(void *param)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        // processthe data pointed to by the console buffer pointer
+        // Process the data pointed to by the console buffer pointer
         // if "RED_ON" turn on red LED
         if (strcmp(consume_console_buffer->data, "RED_ON") == 0)
         {
@@ -283,8 +282,7 @@ bool task_console_resources_init_rx(void)
 {
     BaseType_t rslt;
 
-    /* ADD CODE */
-    // Create the System Control Response Queue for gatekeeper communication
+    // Create the Sensor Response Queue for hardware task communication
     Queue_Sensor_Responses = xQueueCreate(10, sizeof(device_response_msg_t));
     if (Queue_Sensor_Responses == NULL)
     {
@@ -323,7 +321,6 @@ bool task_console_resources_init_rx(void)
         return false; // Task creation failed
     }
 
-    // printf("DEBUG: Console RX task created successfully\n\r");
     return true; // Resources initialized successfully
 }
 #endif

@@ -70,6 +70,13 @@ bool task_system_control_resources_init(void)
         return false;
     }
 
+    /* Create the Sensor Responses Queue */
+    Queue_Sensor_Responses = xQueueCreate(10, sizeof(device_response_msg_t));
+    if (Queue_Sensor_Responses == NULL)
+    {
+        return false;
+    }
+
     /* Create the System Control Task */
     if (xTaskCreate(
             task_system_control,

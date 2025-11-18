@@ -135,14 +135,14 @@ bool task_io_expander_resources_init(cyhal_i2c_t *i2c_obj, SemaphoreHandle_t *i2
 		return false;
 	}
 
-	/* Create the Queue used to control blinking of the status LED*/
+	/* Create the Queue used to send commands to the IO Expander*/
 	Queue_IO_Expander_Requests = xQueueCreate(1, sizeof(device_request_msg_t));
 	if (Queue_IO_Expander_Requests == NULL)
 	{
 		return false;
 	}
 
-	/* Create the task that will control the status LED */
+	/* Create the task that will handle IO Expander requests */
 	if (xTaskCreate(
 			task_io_expander,
 			"Task IO Exp",
