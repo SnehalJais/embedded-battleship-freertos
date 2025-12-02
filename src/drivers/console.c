@@ -1,14 +1,14 @@
 /**
  * @file console.c
  * @author Joe Krachey (jkrachey@wisc.edu)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-06-17
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
- #include "main.h"
+#include "main.h"
 #include "console.h"
 #include "cy_result.h"
 #include "cy_retarget_io.h"
@@ -24,7 +24,8 @@ void console_init(void)
 
     if (result != CY_RSLT_SUCCESS)
     {
-        CY_ASSERT(0); // Initialization failed, assert to stop execution
+        /* Console initialization failed - continue without it */
+        /* This allows the system to run even if UART is unavailable */
+        return;
     }
 }
-

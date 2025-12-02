@@ -40,7 +40,12 @@ cy_rslt_t buzzer_init(float duty, uint32_t frequency)
 		return CY_RSLT_SUCCESS;
 	}
 
-	
+	/* Initialize the PWM object first */
+	rslt = cyhal_pwm_init(&buzzer_pwm, PIN_BUZZER, NULL);
+	if (rslt != CY_RSLT_SUCCESS)
+	{
+		return rslt;
+	}
 
 	rslt = cyhal_pwm_set_duty_cycle(&buzzer_pwm, buzzer_duty, buzzer_freq);
 	if (rslt != CY_RSLT_SUCCESS)

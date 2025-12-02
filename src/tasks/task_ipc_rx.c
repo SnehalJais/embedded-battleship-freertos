@@ -64,6 +64,16 @@ void task_ipc_rx(void *param)
                                                                                                     : (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)  ? "SUNK"
                                                                                                                                                                : "UNKNOWN";
             printf("IPC RX Task       : Result: %s\n\r", result_str);
+            
+            /* Check for END_GAME result to detect win condition */
+            if (IPC_Rx_Consume_Buffer->load.result == IPC_GAME_CONTROL_END_GAME)
+            {
+                extern bool game_over;
+                extern bool i_won;
+                printf("GAME END DETECTED!\n\r");
+                game_over = true;
+                i_won = true;  /* If opponent sent END_GAME, it means I won */
+            }
         }
         else if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_GAME_CONTROL)
         {
@@ -75,6 +85,40 @@ void task_ipc_rx(void *param)
                                                                                                                                  : (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_END_GAME)       ? "CONTROL_END_GAME"
                                                                                                                                                                                                                  : "UNKNOWN";
             printf("IPC RX Task       : Game Control: %s\n\r", control_str);
+            
+            /* Handle NEW_GAME - Player 2 receives this */
+            if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_NEW_GAME)
+            {
+                extern bool opponent_ready;
+                extern uint8_t player_id;
+                opponent_ready = true;  /* Signal that opponent pressed SW1 */
+                player_id = 1;          /* I am Player 2 */
+                printf("Received NEW_GAME - I am Player 2\r\n");
+                /* Send ACK back to Player 1 */
+                ipc_send_game_control(IPC_GAME_CONTROL_ACK);
+            }
+            /* Handle ACK - Player 1 receives this */
+            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_ACK)
+            {
+                extern bool ack_received;
+                ack_received = true;
+                printf("Received ACK from Player 2\r\n");
+            }
+            /* Handle PLAYER_READY (for later game phases) */
+            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_PLAYER_READY)
+            {
+                extern bool opponent_ready;
+                opponent_ready = true;
+            }
+            /* Handle END_GAME - opponent lost, so I won */
+            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_END_GAME)
+            {
+                extern bool game_over;
+                extern bool i_won;
+                printf("Received END_GAME from opponent - I WON!\r\n");
+                game_over = true;
+                i_won = true;  /* Opponent sent END_GAME means they lost, I won */
+            }
         }
         else if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_ERROR)
         {

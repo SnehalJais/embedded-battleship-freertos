@@ -81,8 +81,7 @@ volatile ece353_events_t ECE353_Events;
 *  int
 *
 *******************************************************************************/
-int main(void)
-{
+int main(void){
     cy_rslt_t result;
 
     /* Initialize the device and board peripherals */
