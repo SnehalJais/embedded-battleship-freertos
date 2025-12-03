@@ -206,8 +206,8 @@ bool battleship_place_ship(uint8_t col, uint8_t row, battleship_type_t type, boo
         // Mark this space as occupied in the game board
         game_board[place_row][place_col] = 1;
 
-        // Draw the ship space in grey
-        battleship_draw_cursor(place_col, place_row, LCD_COLOR_BLUE, LCD_COLOR_GRAY);
+        // Don't draw grey - let the hw05 task handle all drawing
+        // battleship_draw_cursor(place_col, place_row, LCD_COLOR_BLUE, LCD_COLOR_GRAY);
     }
 
     return true;
