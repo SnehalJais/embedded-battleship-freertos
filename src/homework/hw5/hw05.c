@@ -70,111 +70,75 @@ uint16_t opponent_misses = 0; /* Number of times opponent missed */
 /* This is used by task_ipc_rx.c to check opponent's fire commands */
 uint8_t occupied_board[10][10] = {0};
 
+
 /*****************************************************************************/
 /* Function Declarations                                                     */
 /*****************************************************************************/
 void task_system_control(void *arg);
+void task_gameplay(void);
+void draw_initial_board(void);
+void initialize_game_players(void);
+void draw_battleship_board(void);
+void task_ship_placement(void);
 
 /*****************************************************************************/
 /* Function Definitions                                                      */
 /*****************************************************************************/
 /**
  * @brief
- * This function will initialize all of the software resources for the
- * System Control Task
- * @return true
- * @return false
+ * Draw the initial empty board with hits/misses display
+ * Called once at the start of gameplay before ship placement
  */
-bool task_system_control_resources_init(void)
+void draw_initial_board(void)
 {
-    /* Create the I2C Semaphore */
-    Semaphore_I2C = xSemaphoreCreateMutex();
-    if (Semaphore_I2C == NULL)
-    {
-        return false;
-    }
-
-    /* Create the SPI Semaphore */
-    Semaphore_SPI = xSemaphoreCreateMutex();
-    if (Semaphore_SPI == NULL)
-    {
-        return false;
-    }
-
-    /* Create the System Control Task */
-    if (xTaskCreate(
-            task_system_control,
-            "System Control Task",
-            configMINIMAL_STACK_SIZE * 5,
-            NULL,
-            tskIDLE_PRIORITY + 1,
-            NULL) != pdPASS)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-/**
- * @brief
- * This function implements the behavioral requirements for the ICE
- * @param arg
- */
-void task_system_control(void *arg)
-{
-    (void)arg; // Unused parameter
-    task_console_printf("Starting System Control Task\r\n");
-
-    /* Configure the IO Expander*/
-    system_sensors_io_expander_write(NULL, IOXP_ADDR_CONFIG, 0x80); // Set P7 as input, all others as outputs
-
-    /* Set the initial state of the LEDs*/
-    system_sensors_io_expander_write(NULL, IOXP_ADDR_OUTPUT_PORT, 0x01); // Turn on LED0
-
-    /* Wait for LCD queue to be initialized */
-    while (xQueue_LCD_response == NULL || xQueue_LCD == NULL)
-    {
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-
-    /* Clear the LCD screen */
     lcd_msg_t lcd_msg;
     lcd_cmd_status_t status;
+    lcd_console_payload_t *console_payload;
 
-    lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
-    lcd_msg.response_queue = xQueue_LCD_response;
-    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-    // draw the board and other initial messages
+    /* Draw empty board */
     lcd_msg.command = LCD_CMD_DRAW_BOARD;
     lcd_msg.response_queue = xQueue_LCD_response;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
 
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(200));
 
+    /* Display hits/misses on right side */
     lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
     lcd_msg.response_queue = xQueue_LCD_response;
-    lcd_console_payload_t *console_payload = &lcd_msg.payload.console;
+    console_payload = &lcd_msg.payload.console;
     console_payload->x_offset = 210;
     console_payload->y_offset = 50;
-    console_payload->message = "Hits!";
+    console_payload->message = "Hits: 0";
     console_payload->length = strlen(console_payload->message);
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
 
+    /* Display misses below hits */
     lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
     lcd_msg.response_queue = xQueue_LCD_response;
     console_payload->x_offset = 210;
     console_payload->y_offset = 100;
-    console_payload->message = "Misses!";
+    console_payload->message = "Misses: 0";
     console_payload->length = strlen(console_payload->message);
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(200));
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(200));
+}
+
+
+
+/**
+ * @brief
+ * Initialize game players - wait for SW1 press, determine player roles, handle ACK
+ * Sets player_id (0 or 1) and next_first_player
+ */
+void initialize_game_players(void)
+{
+    lcd_msg_t lcd_msg;
+    lcd_cmd_status_t status;
+    lcd_console_payload_t *console_payload = NULL;
 
     lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
     lcd_msg.response_queue = xQueue_LCD_response;
@@ -267,361 +231,45 @@ void task_system_control(void *arg)
         printf("I am Player 2 - Opponent is Player 1. Ready for ship placement...\r\n");
         vTaskDelay(pdMS_TO_TICKS(100));
     }
+}
 
-    printf("Ready to start ship placement!\r\n");
+/**
+ * @brief
+ * Draw the battleship board for ship placement
+ * Clears screen and draws the empty board grid
+ */
+void draw_battleship_board(void)
+{
+    lcd_msg_t lcd_msg;
+    lcd_cmd_status_t status;
 
     lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
     lcd_msg.response_queue = xQueue_LCD_response;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
 
-    /* Draw empty board */
-    lcd_msg.command = LCD_CMD_DRAW_BOARD;
-    lcd_msg.response_queue = xQueue_LCD_response;
-    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-    /* Display hits/misses on right side */
-    lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
-    lcd_msg.response_queue = xQueue_LCD_response;
-    console_payload->x_offset = 210;
-    console_payload->y_offset = 50;
-    console_payload->message = "Hits: 0";
-    console_payload->length = strlen(console_payload->message);
-    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-    /* Display misses below hits */
-    lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
-    lcd_msg.response_queue = xQueue_LCD_response;
-    console_payload->x_offset = 210;
-    console_payload->y_offset = 100;
-    console_payload->message = "Misses: 0";
-    console_payload->length = strlen(console_payload->message);
-    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-    // start doing ship placement code after board is drawn
-    // first use IMU to move ships on the board
-    // place from smallest to largest ship
-    printf("Starting ship placement...\r\n");
-
-    /* Ship placement using battleship.c functions */
-    battleship_type_t ship_types[5] = {
-        BATTLESHIP_TYPE_DESTROYER,  /* Smallest ship - length 2 */
-        BATTLESHIP_TYPE_SUBMARINE,  /* Length 3 */
-        BATTLESHIP_TYPE_CRUISER,    /* Length 3 */
-        BATTLESHIP_TYPE_BATTLESHIP, /* Length 4 */
-        BATTLESHIP_TYPE_CARRIER,    /* Largest ship - length 5 */
-    };
-
-    uint8_t current_ship = 0;
-    uint8_t ships_placed = 0;
-    uint8_t cursor_col = 0, cursor_row = 0;
-    bool ship_orientation = true; /* true = horizontal */
-    uint16_t imu_data[3];
-    int16_t accel_x, accel_y;
-    uint32_t last_move_time = 0;
-    QueueHandle_t imu_response_queue;
-
-    const int16_t IMU_THRESHOLD = 2500; /* Threshold for IMU movement */
-    const uint32_t MOVE_INTERVAL = 300; /* 0.3 seconds */
-
-    /* Track cursor tile positions to know what to clear */
-    uint8_t cursor_tiles[5][2]; /* Store col,row of cursor tiles */
-    uint8_t cursor_tile_count = 0;
-
-    /* occupied_board is now a global variable (declared at top of file) */
-    /* It tracks which tiles have placed ships - never clear these */
-    /* This board is also accessed by task_ipc_rx.c to verify opponent's fire commands */
-
-    /* Clear battleship board and create IMU queue */
-    battleship_board_clear();
-    imu_response_queue = xQueueCreate(1, sizeof(device_response_msg_t));
-
     /* Draw the board once before ship placement */
     lcd_msg.command = LCD_CMD_DRAW_BOARD;
     lcd_msg.response_queue = xQueue_LCD_response;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+}
 
-    uint8_t prev_cursor_col = 0, prev_cursor_row = 0; /* Track previous position for clearing */
-    bool first_draw = true;                           /* Flag for first ship display - don't clear on first draw */
+/**
+ * @brief
+ * Attack phase gameplay - joystick targeting and SW1 to fire at opponent board
+ * Called after ship placement is complete
+ */
+void task_gameplay(void)
+{
+    lcd_msg_t lcd_msg;
+    lcd_cmd_status_t status;
 
-    while (ships_placed < 5)
-    {
-        bool ship_moved = false;
-
-        /* Read IMU data - continuous movement based on tilt */
-        if (system_sensors_imu_read(imu_response_queue, imu_data))
-        {
-            accel_x = (int16_t)imu_data[0];
-            accel_y = (int16_t)imu_data[1];
-
-            /* Check timing for movement - only allow movement after MOVE_INTERVAL */
-            uint32_t current_time = xTaskGetTickCount();
-            if (current_time - last_move_time >= MOVE_INTERVAL)
-            {
-                /* Check X-axis movement - inverted for intuitive control */
-                if (accel_x > IMU_THRESHOLD)
-                {
-                    /* Save previous position before moving */
-                    if (!first_draw)
-                    {
-                        prev_cursor_col = cursor_col;
-                        prev_cursor_row = cursor_row;
-                    }
-                    cursor_col = (cursor_col == 0) ? 9 : cursor_col - 1;
-                    last_move_time = current_time;
-                    // printf("Ship moved LEFT to col %d\r\n", cursor_col);
-                    ship_moved = true;
-                }
-                else if (accel_x < -IMU_THRESHOLD)
-                {
-                    /* Save previous position before moving */
-                    if (!first_draw)
-                    {
-                        prev_cursor_col = cursor_col;
-                        prev_cursor_row = cursor_row;
-                    }
-                    cursor_col = (cursor_col + 1) % 10;
-                    last_move_time = current_time;
-                    printf("Ship moved RIGHT to col %d\r\n", cursor_col);
-                    ship_moved = true;
-                }
-                else if (accel_y > IMU_THRESHOLD)
-                {
-                    /* Save previous position before moving */
-                    if (!first_draw)
-                    {
-                        prev_cursor_col = cursor_col;
-                        prev_cursor_row = cursor_row;
-                    }
-                    cursor_row = (cursor_row + 1) % 10;
-                    last_move_time = current_time;
-                    printf("Ship moved DOWN to row %d\r\n", cursor_row);
-                    ship_moved = true;
-                }
-                else if (accel_y < -IMU_THRESHOLD)
-                {
-                    /* Save previous position before moving */
-                    if (!first_draw)
-                    {
-                        prev_cursor_col = cursor_col;
-                        prev_cursor_row = cursor_row;
-                    }
-                    cursor_row = (cursor_row == 0) ? 9 : cursor_row - 1;
-                    last_move_time = current_time;
-                    printf("Ship moved UP to row %d\r\n", cursor_row);
-                    ship_moved = true;
-                }
-            }
-        }
-
-        /* If ship moved, clear only the previous yellow cursor ship tiles */
-        if (ship_moved && !first_draw)
-        {
-            uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
-
-            for (uint8_t i = 0; i < ship_length; i++)
-            {
-                uint8_t clear_col = ship_orientation ? (prev_cursor_col + i) : prev_cursor_col;
-                uint8_t clear_row = ship_orientation ? prev_cursor_row : (prev_cursor_row + i);
-
-                /* Only clear if this tile doesn't have a placed ship */
-                if (occupied_board[clear_row][clear_col] == 0)
-                {
-                    /* Draw board tile - always black fill, border color changes with light mode */
-                    lcd_msg.command = LCD_CMD_DRAW_TILE;
-                    lcd_msg.response_queue = xQueue_LCD_response;
-                    lcd_msg.payload.battleship.row = clear_row;
-                    lcd_msg.payload.battleship.col = clear_col;
-                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
-                    lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
-                    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-                    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-                }
-            }
-        }
-
-        /* Draw ship at current position only if it moved or on first draw */
-        if (ship_moved || first_draw)
-        {
-            if (current_ship < 5)
-            {
-                lcd_msg.command = LCD_CMD_DRAW_SHIP;
-                lcd_msg.response_queue = xQueue_LCD_response;
-                lcd_msg.payload.battleship.row = cursor_row;
-                lcd_msg.payload.battleship.col = cursor_col;
-                lcd_msg.payload.battleship.type = ship_types[current_ship];
-                lcd_msg.payload.battleship.horizontal = ship_orientation;
-                lcd_msg.payload.battleship.border_color = BATTLESHIP_CURSOR_COLOR;
-                lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
-                xQueueSend(xQueue_LCD, &lcd_msg, 0);
-                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-                first_draw = false; /* Mark first draw complete */
-            }
-        }
-
-        /* Save current position for next move */
-        prev_cursor_col = cursor_col;
-        prev_cursor_row = cursor_row;
-
-        /* Check buttons - use WaitBits to catch events more reliably */
-        EventBits_t button_event = xEventGroupWaitBits(
-            ECE353_RTOS_Events,
-            ECE353_RTOS_EVENTS_SW1 | ECE353_RTOS_EVENTS_SW2,
-            pdFALSE,          /* Don't clear bits yet */
-            pdFALSE,          /* Don't wait for all bits */
-            pdMS_TO_TICKS(10) /* 10ms timeout to not block IMU reading */
-        );
-
-        /* SW1 - Rotate ship */
-        if (button_event & ECE353_RTOS_EVENTS_SW1)
-        {
-            xEventGroupClearBits(ECE353_RTOS_Events, ECE353_RTOS_EVENTS_SW1);
-
-            if (current_ship < 5)
-            {
-                /* Clear all tiles the current ship occupies before rotating */
-                uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
-                for (uint8_t i = 0; i < ship_length; i++)
-                {
-                    uint8_t clear_col = ship_orientation ? (cursor_col + i) : cursor_col;
-                    uint8_t clear_row = ship_orientation ? cursor_row : (cursor_row + i);
-
-                    /* Only clear if this tile doesn't have a placed ship */
-                    if (occupied_board[clear_row][clear_col] == 0)
-                    {
-                        lcd_msg.command = LCD_CMD_DRAW_TILE;
-                        lcd_msg.response_queue = xQueue_LCD_response;
-                        lcd_msg.payload.battleship.row = clear_row;
-                        lcd_msg.payload.battleship.col = clear_col;
-                        lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
-                        lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
-                        xQueueSend(xQueue_LCD, &lcd_msg, 0);
-                        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-                    }
-                }
-
-                /* Now rotate */
-                ship_orientation = !ship_orientation;
-                // printf("Ship orientation: %s\r\n", ship_orientation ? "horizontal" : "vertical");
-
-                /* Redraw ship in new orientation */
-                lcd_msg.command = LCD_CMD_DRAW_SHIP;
-                lcd_msg.response_queue = xQueue_LCD_response;
-                lcd_msg.payload.battleship.row = cursor_row;
-                lcd_msg.payload.battleship.col = cursor_col;
-                lcd_msg.payload.battleship.type = ship_types[current_ship];
-                lcd_msg.payload.battleship.horizontal = ship_orientation;
-                lcd_msg.payload.battleship.border_color = LCD_COLOR_GREEN;
-                lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
-                xQueueSend(xQueue_LCD, &lcd_msg, 0);
-                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-            }
-        }
-
-        /* SW2 - Place ship on the board */
-        if (button_event & ECE353_RTOS_EVENTS_SW2)
-        {
-            xEventGroupClearBits(ECE353_RTOS_Events, ECE353_RTOS_EVENTS_SW2);
-
-            if (current_ship >= 5)
-            {
-                printf("ERROR: current_ship out of bounds (%d)\r\n", current_ship);
-                return;
-            }
-
-            uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
-            printf("Attempting to place ship %d (type=%d, length=%d) at (%d,%d)\r\n",
-                   current_ship, ship_types[current_ship], ship_length, cursor_col, cursor_row);
-
-            /* Check if ship will fit within board */
-            bool fits_in_board = true;
-            if (ship_orientation) /* horizontal */
-            {
-                if ((cursor_col + ship_length) > 10)
-                    fits_in_board = false;
-            }
-            else /* vertical */
-            {
-                if ((cursor_row + ship_length) > 10)
-                    fits_in_board = false;
-            }
-
-            /* Try to place the ship - battleship_place_ship handles overlap checking internally */
-            bool placement_success = false;
-            if (fits_in_board)
-            {
-                placement_success = battleship_place_ship(cursor_col, cursor_row, ship_types[current_ship], ship_orientation, player_id);
-            }
-
-            if (placement_success)
-            {
-                printf("Ship %d placed at (%d, %d) - %s - ships_placed now %d\r\n",
-                       current_ship, cursor_col, cursor_row,
-                       ship_orientation ? "horizontal" : "vertical",
-                       ships_placed + 1);
-
-                /* Draw the placed ship in green */
-                lcd_msg.command = LCD_CMD_DRAW_SHIP;
-                lcd_msg.response_queue = xQueue_LCD_response;
-                lcd_msg.payload.battleship.row = cursor_row;
-                lcd_msg.payload.battleship.col = cursor_col;
-                lcd_msg.payload.battleship.type = ship_types[current_ship];
-                lcd_msg.payload.battleship.horizontal = ship_orientation;
-                lcd_msg.payload.battleship.border_color = LCD_COLOR_GREEN;
-                lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
-                xQueueSend(xQueue_LCD, &lcd_msg, 0);
-                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-                vTaskDelay(pdMS_TO_TICKS(50));
-
-                /* Mark all tiles this ship occupies as occupied */
-                uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
-                for (uint8_t i = 0; i < ship_length; i++)
-                {
-                    uint8_t mark_col = ship_orientation ? (cursor_col + i) : cursor_col;
-                    uint8_t mark_row = ship_orientation ? cursor_row : (cursor_row + i);
-                    occupied_board[mark_row][mark_col] = 1;
-                }
-
-                ships_placed++;
-                current_ship++; /* Move to next ship */
-
-                printf("Ready for next ship. current_ship=%d, ships_placed=%d\r\n", current_ship, ships_placed);
-
-                /* Reset cursor for next ship */
-                cursor_col = 0;
-                cursor_row = 0;
-                prev_cursor_col = 0;
-                prev_cursor_row = 0;
-                ship_orientation = true;
-                first_draw = true;
-            }
-            else
-            {
-                printf("Placement failed for ship %d at (%d,%d). fits_in_board=%d\r\n",
-                       current_ship, cursor_col, cursor_row, fits_in_board);
-                ipc_send_error(IPC_ERROR_COORD_OCCUPIED);
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(50));
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-
-    printf("All ships placed! Sending PLAYER_READY...\r\n");
-    ipc_send_game_control(IPC_GAME_CONTROL_PLAYER_READY);
-
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    /* Game loop: attack phase */
+    /* ATTACK PHASE - Game loop */
     uint32_t game_timeout = 60000; /* 60 seconds for testing */
     uint32_t game_elapsed = 0;
     char score_buffer[32];
+    lcd_console_payload_t *console_payload;
 
     /* Target coordinates for attack */
     uint8_t target_row = 0, target_col = 0;
@@ -789,6 +437,419 @@ void task_system_control(void *arg)
     {
         vTaskDelay(pdMS_TO_TICKS(100)); /* Just idle */
     }
+}
+
+/**
+ * @brief
+ * Handle ship placement phase - move ships with IMU, rotate with SW1, place with SW2
+ */
+void task_ship_placement(void)
+{
+    lcd_msg_t lcd_msg;
+    lcd_cmd_status_t status;
+
+
+    /* Ship placement using battleship.c functions */
+    battleship_type_t ship_types[5] = {
+        BATTLESHIP_TYPE_DESTROYER,  /* Smallest ship - length 2 */
+        BATTLESHIP_TYPE_SUBMARINE,  /* Length 3 */
+        BATTLESHIP_TYPE_CRUISER,    /* Length 3 */
+        BATTLESHIP_TYPE_BATTLESHIP, /* Length 4 */
+        BATTLESHIP_TYPE_CARRIER,    /* Largest ship - length 5 */
+    };
+
+    uint8_t current_ship = 0;
+    uint8_t ships_placed = 0;
+    uint8_t cursor_col = 0, cursor_row = 0;
+    bool ship_orientation = true; /* true = horizontal */
+    uint16_t imu_data[3];
+    int16_t accel_x, accel_y;
+    uint32_t last_move_time = 0;
+    QueueHandle_t imu_response_queue;
+
+    const int16_t IMU_THRESHOLD = 2500; /* Threshold for IMU movement */
+    const uint32_t MOVE_INTERVAL = 300; /* 0.3 seconds */
+
+    /* Track cursor tile positions to know what to clear */
+    uint8_t cursor_tiles[5][2]; /* Store col,row of cursor tiles */
+    uint8_t cursor_tile_count = 0;
+
+    /* Track which tiles have placed ships - never clear these */
+    uint8_t occupied_board[10][10] = {0}; /* 0 = empty, 1 = ship placed here */
+
+    /* Clear battleship board and create IMU queue */
+    battleship_board_clear();
+    imu_response_queue = xQueueCreate(1, sizeof(device_response_msg_t));
+
+    /* Draw the board once before ship placement */
+    lcd_msg.command = LCD_CMD_DRAW_BOARD;
+    lcd_msg.response_queue = xQueue_LCD_response;
+    xQueueSend(xQueue_LCD, &lcd_msg, 0);
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+    uint8_t prev_cursor_col = 0, prev_cursor_row = 0; /* Track previous position for clearing */
+    bool first_draw = true;                           /* Flag for first ship display - don't clear on first draw */
+
+    while (ships_placed < 5)
+    {
+        bool ship_moved = false;
+
+        /* Read IMU data - continuous movement based on tilt */
+        if (system_sensors_imu_read(imu_response_queue, imu_data))
+        {
+            accel_x = (int16_t)imu_data[0];
+            accel_y = (int16_t)imu_data[1];
+
+            /* Check timing for movement - only allow movement after MOVE_INTERVAL */
+            uint32_t current_time = xTaskGetTickCount();
+            if (current_time - last_move_time >= MOVE_INTERVAL)
+            {
+                /* Check X-axis movement - inverted for intuitive control */
+                if (accel_x > IMU_THRESHOLD)
+                {
+                    /* Save previous position before moving */
+                    if (!first_draw)
+                    {
+                        prev_cursor_col = cursor_col;
+                        prev_cursor_row = cursor_row;
+                    }
+                    cursor_col = (cursor_col == 0) ? 9 : cursor_col - 1;
+                    last_move_time = current_time;
+                    // printf("Ship moved LEFT to col %d\r\n", cursor_col);
+                    ship_moved = true;
+                }
+                else if (accel_x < -IMU_THRESHOLD)
+                {
+                    /* Save previous position before moving */
+                    if (!first_draw)
+                    {
+                        prev_cursor_col = cursor_col;
+                        prev_cursor_row = cursor_row;
+                    }
+                    cursor_col = (cursor_col + 1) % 10;
+                    last_move_time = current_time;
+                    printf("Ship moved RIGHT to col %d\r\n", cursor_col);
+                    ship_moved = true;
+                }
+                else if (accel_y > IMU_THRESHOLD)
+                {
+                    /* Save previous position before moving */
+                    if (!first_draw)
+                    {
+                        prev_cursor_col = cursor_col;
+                        prev_cursor_row = cursor_row;
+                    }
+                    cursor_row = (cursor_row + 1) % 10;
+                    last_move_time = current_time;
+                    printf("Ship moved DOWN to row %d\r\n", cursor_row);
+                    ship_moved = true;
+                }
+                else if (accel_y < -IMU_THRESHOLD)
+                {
+                    /* Save previous position before moving */
+                    if (!first_draw)
+                    {
+                        prev_cursor_col = cursor_col;
+                        prev_cursor_row = cursor_row;
+                    }
+                    cursor_row = (cursor_row == 0) ? 9 : cursor_row - 1;
+                    last_move_time = current_time;
+                    printf("Ship moved UP to row %d\r\n", cursor_row);
+                    ship_moved = true;
+                }
+            }
+        }
+
+        /* If ship moved, clear only the previous yellow cursor ship tiles */
+        if (ship_moved && !first_draw)
+        {
+            uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
+
+            for (uint8_t i = 0; i < ship_length; i++)
+            {
+                uint8_t clear_col = ship_orientation ? (prev_cursor_col + i) : prev_cursor_col;
+                uint8_t clear_row = ship_orientation ? prev_cursor_row : (prev_cursor_row + i);
+
+                /* Only clear if this tile doesn't have a placed ship */
+                if (occupied_board[clear_row][clear_col] == 0)
+                {
+                    /* Draw blue board tile to cover the yellow cursor ship */
+                    lcd_msg.command = LCD_CMD_DRAW_TILE;
+                    lcd_msg.response_queue = xQueue_LCD_response;
+                    lcd_msg.payload.battleship.row = clear_row;
+                    lcd_msg.payload.battleship.col = clear_col;
+                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
+                    lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
+                    xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+                }
+            }
+        }
+
+        /* Draw ship at current position only if it moved or on first draw */
+        if (ship_moved || first_draw)
+        {
+            if (current_ship < 5)
+            {
+                lcd_msg.command = LCD_CMD_DRAW_SHIP;
+                lcd_msg.response_queue = xQueue_LCD_response;
+                lcd_msg.payload.battleship.row = cursor_row;
+                lcd_msg.payload.battleship.col = cursor_col;
+                lcd_msg.payload.battleship.type = ship_types[current_ship];
+                lcd_msg.payload.battleship.horizontal = ship_orientation;
+                lcd_msg.payload.battleship.border_color = BATTLESHIP_CURSOR_COLOR;
+                lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
+                xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+                first_draw = false; /* Mark first draw complete */
+            }
+        }
+
+        /* Save current position for next move */
+        prev_cursor_col = cursor_col;
+        prev_cursor_row = cursor_row;
+
+        /* Check buttons - use WaitBits to catch events more reliably */
+        EventBits_t button_event = xEventGroupWaitBits(
+            ECE353_RTOS_Events,
+            ECE353_RTOS_EVENTS_SW1 | ECE353_RTOS_EVENTS_SW2,
+            pdFALSE,          /* Don't clear bits yet */
+            pdFALSE,          /* Don't wait for all bits */
+            pdMS_TO_TICKS(10) /* 10ms timeout to not block IMU reading */
+        );
+
+        /* SW1 - Rotate ship */
+        if (button_event & ECE353_RTOS_EVENTS_SW1)
+        {
+            xEventGroupClearBits(ECE353_RTOS_Events, ECE353_RTOS_EVENTS_SW1);
+
+            if (current_ship < 5)
+            {
+                /* Clear all tiles the current ship occupies before rotating */
+                uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
+                for (uint8_t i = 0; i < ship_length; i++)
+                {
+                    uint8_t clear_col = ship_orientation ? (cursor_col + i) : cursor_col;
+                    uint8_t clear_row = ship_orientation ? cursor_row : (cursor_row + i);
+
+                    /* Only clear if this tile doesn't have a placed ship */
+                    if (occupied_board[clear_row][clear_col] == 0)
+                    {
+                        lcd_msg.command = LCD_CMD_DRAW_TILE;
+                        lcd_msg.response_queue = xQueue_LCD_response;
+                        lcd_msg.payload.battleship.row = clear_row;
+                        lcd_msg.payload.battleship.col = clear_col;
+                        lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
+                        xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+                    }
+                }
+
+                /* Now rotate */
+                ship_orientation = !ship_orientation;
+                // printf("Ship orientation: %s\r\n", ship_orientation ? "horizontal" : "vertical");
+
+                /* Redraw ship in new orientation */
+                lcd_msg.command = LCD_CMD_DRAW_SHIP;
+                lcd_msg.response_queue = xQueue_LCD_response;
+                lcd_msg.payload.battleship.row = cursor_row;
+                lcd_msg.payload.battleship.col = cursor_col;
+                lcd_msg.payload.battleship.type = ship_types[current_ship];
+                lcd_msg.payload.battleship.horizontal = ship_orientation;
+                lcd_msg.payload.battleship.border_color = BATTLESHIP_CURSOR_COLOR;
+                lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
+                xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+            }
+        }
+
+        /* SW2 - Place ship on the board */
+        if (button_event & ECE353_RTOS_EVENTS_SW2)
+        {
+            xEventGroupClearBits(ECE353_RTOS_Events, ECE353_RTOS_EVENTS_SW2);
+
+            if (current_ship >= 5)
+            {
+                printf("ERROR: current_ship out of bounds (%d)\r\n", current_ship);
+                return;
+            }
+
+            uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
+            printf("Attempting to place ship %d (type=%d, length=%d) at (%d,%d)\r\n",
+                   current_ship, ship_types[current_ship], ship_length, cursor_col, cursor_row);
+
+            /* Check if ship will fit within board */
+            bool fits_in_board = true;
+            if (ship_orientation) /* horizontal */
+            {
+                if ((cursor_col + ship_length) > 10)
+                    fits_in_board = false;
+            }
+            else /* vertical */
+            {
+                if ((cursor_row + ship_length) > 10)
+                    fits_in_board = false;
+            }
+
+            /* Try to place the ship - battleship_place_ship handles overlap checking internally */
+            bool placement_success = false;
+            if (fits_in_board)
+            {
+                placement_success = battleship_place_ship(cursor_col, cursor_row, ship_types[current_ship], ship_orientation, player_id);
+            }
+
+            if (placement_success)
+            {
+                printf("Ship %d placed at (%d, %d) - %s - ships_placed now %d\r\n",
+                       current_ship, cursor_col, cursor_row,
+                       ship_orientation ? "horizontal" : "vertical",
+                       ships_placed + 1);
+
+                /* Draw the placed ship in green */
+                lcd_msg.command = LCD_CMD_DRAW_SHIP;
+                lcd_msg.response_queue = xQueue_LCD_response;
+                lcd_msg.payload.battleship.row = cursor_row;
+                lcd_msg.payload.battleship.col = cursor_col;
+                lcd_msg.payload.battleship.type = ship_types[current_ship];
+                lcd_msg.payload.battleship.horizontal = ship_orientation;
+                lcd_msg.payload.battleship.border_color = BATTLESHIP_CURSOR_COLOR;
+                lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
+                xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+                vTaskDelay(pdMS_TO_TICKS(50));
+
+                /* Mark all tiles this ship occupies as occupied */
+                uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
+                for (uint8_t i = 0; i < ship_length; i++)
+                {
+                    uint8_t mark_col = ship_orientation ? (cursor_col + i) : cursor_col;
+                    uint8_t mark_row = ship_orientation ? cursor_row : (cursor_row + i);
+                    occupied_board[mark_row][mark_col] = 1;
+                }
+
+                ships_placed++;
+                current_ship++; /* Move to next ship */
+
+                printf("Ready for next ship. current_ship=%d, ships_placed=%d\r\n", current_ship, ships_placed);
+
+                /* Reset cursor for next ship */
+                cursor_col = 0;
+                cursor_row = 0;
+                prev_cursor_col = 0;
+                prev_cursor_row = 0;
+                ship_orientation = true;
+                first_draw = true;
+            }
+            else
+            {
+                printf("Placement failed for ship %d at (%d,%d). fits_in_board=%d\r\n",
+                       current_ship, cursor_col, cursor_row, fits_in_board);
+                ipc_send_error(IPC_ERROR_COORD_OCCUPIED);
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
+    printf("All ships placed! Sending PLAYER_READY...\r\n");
+    ipc_send_game_control(IPC_GAME_CONTROL_PLAYER_READY);
+}
+
+/**
+ * @brief
+ * This function will initialize all of the software resources for the
+ * System Control Task
+ * @return true
+ * @return false
+ */
+bool task_system_control_resources_init(void)
+    {
+        /* Create the I2C Semaphore */
+        Semaphore_I2C = xSemaphoreCreateMutex();
+        if (Semaphore_I2C == NULL)
+        {
+            return false;
+        }
+
+        /* Create the SPI Semaphore */
+        Semaphore_SPI = xSemaphoreCreateMutex();
+        if (Semaphore_SPI == NULL)
+        {
+            return false;
+        }
+
+        /* Create the System Control Task */
+        if (xTaskCreate(
+                task_system_control,
+                "System Control Task",
+                configMINIMAL_STACK_SIZE * 5,
+                NULL,
+                tskIDLE_PRIORITY + 1,
+                NULL) != pdPASS)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+/**
+ * @brief
+ * This function implements the behavioral requirements for the ICE
+ * @param arg
+ */
+void task_system_control(void *arg)
+{
+    (void)arg; // Unused parameter
+    task_console_printf("Starting System Control Task\r\n");
+
+    /* Configure the IO Expander*/
+    system_sensors_io_expander_write(NULL, IOXP_ADDR_CONFIG, 0x80); // Set P7 as input, all others as outputs
+
+    /* Set the initial state of the LEDs*/
+    system_sensors_io_expander_write(NULL, IOXP_ADDR_OUTPUT_PORT, 0x01); // Turn on LED0
+
+    /* Wait for LCD queue to be initialized */
+    while (xQueue_LCD_response == NULL || xQueue_LCD == NULL)
+    {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    /* Clear the LCD screen */
+    lcd_msg_t lcd_msg;
+    lcd_cmd_status_t status;
+
+    lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
+    lcd_msg.response_queue = xQueue_LCD_response;
+    xQueueSend(xQueue_LCD, &lcd_msg, 0);
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+    /* Draw initial board with hits/misses display */
+    draw_initial_board();
+
+    lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
+    lcd_msg.response_queue = xQueue_LCD_response;
+    xQueueSend(xQueue_LCD, &lcd_msg, 0);
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+    /* Initialize game players - wait for SW1, determine player roles */
+    initialize_game_players();
+
+    printf("Ready to start ship placement!\r\n");
+
+    /* Draw battleship board for ship placement phase */
+    draw_battleship_board();
+
+    /* Execute ship placement task */
+    task_ship_placement();
+
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    /* Run attack phase gameplay */
+    task_gameplay();
 }
 
 /**
