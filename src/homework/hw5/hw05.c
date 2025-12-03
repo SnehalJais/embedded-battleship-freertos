@@ -59,6 +59,17 @@ bool i_won = false;            /* Flag set if I won the game */
 uint8_t current_turn = 0;      /* 0 = Player 0's turn, 1 = Player 1's turn (alternates during gameplay) */
 EventGroupHandle_t ECE353_RTOS_Events = NULL;
 
+/* Hit and Miss counters for game play */
+uint16_t my_hits = 0;         /* Number of times I hit opponent's ships */
+uint16_t my_misses = 0;       /* Number of times I missed */
+uint16_t opponent_hits = 0;   /* Number of times opponent hit my ships */
+uint16_t opponent_misses = 0; /* Number of times opponent missed */
+
+/* Ship placement board - tracks where your ships are located */
+/* 0 = empty, 1 = ship placed here */
+/* This is used by task_ipc_rx.c to check opponent's fire commands */
+uint8_t occupied_board[10][10] = {0};
+
 /*****************************************************************************/
 /* Function Declarations                                                     */
 /*****************************************************************************/
@@ -315,13 +326,14 @@ void task_system_control(void *arg)
 
     const int16_t IMU_THRESHOLD = 2500; /* Threshold for IMU movement */
     const uint32_t MOVE_INTERVAL = 300; /* 0.3 seconds */
-    
+
     /* Track cursor tile positions to know what to clear */
-    uint8_t cursor_tiles[5][2];  /* Store col,row of cursor tiles */
+    uint8_t cursor_tiles[5][2]; /* Store col,row of cursor tiles */
     uint8_t cursor_tile_count = 0;
-    
-    /* Track which tiles have placed ships - never clear these */
-    uint8_t occupied_board[10][10] = {0};  /* 0 = empty, 1 = ship placed here */
+
+    /* occupied_board is now a global variable (declared at top of file) */
+    /* It tracks which tiles have placed ships - never clear these */
+    /* This board is also accessed by task_ipc_rx.c to verify opponent's fire commands */
 
     /* Clear battleship board and create IMU queue */
     battleship_board_clear();
@@ -419,7 +431,7 @@ void task_system_control(void *arg)
                 /* Only clear if this tile doesn't have a placed ship */
                 if (occupied_board[clear_row][clear_col] == 0)
                 {
-                    /* Draw blue board tile to cover the yellow cursor ship */
+                    /* Draw board tile - always black fill, border color changes with light mode */
                     lcd_msg.command = LCD_CMD_DRAW_TILE;
                     lcd_msg.response_queue = xQueue_LCD_response;
                     lcd_msg.payload.battleship.row = clear_row;
@@ -460,9 +472,9 @@ void task_system_control(void *arg)
         EventBits_t button_event = xEventGroupWaitBits(
             ECE353_RTOS_Events,
             ECE353_RTOS_EVENTS_SW1 | ECE353_RTOS_EVENTS_SW2,
-            pdFALSE,  /* Don't clear bits yet */
-            pdFALSE,  /* Don't wait for all bits */
-            pdMS_TO_TICKS(10)  /* 10ms timeout to not block IMU reading */
+            pdFALSE,          /* Don't clear bits yet */
+            pdFALSE,          /* Don't wait for all bits */
+            pdMS_TO_TICKS(10) /* 10ms timeout to not block IMU reading */
         );
 
         /* SW1 - Rotate ship */
@@ -487,6 +499,7 @@ void task_system_control(void *arg)
                         lcd_msg.payload.battleship.row = clear_row;
                         lcd_msg.payload.battleship.col = clear_col;
                         lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
+                        lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
                         xQueueSend(xQueue_LCD, &lcd_msg, 0);
                         xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
                     }
@@ -503,19 +516,18 @@ void task_system_control(void *arg)
                 lcd_msg.payload.battleship.col = cursor_col;
                 lcd_msg.payload.battleship.type = ship_types[current_ship];
                 lcd_msg.payload.battleship.horizontal = ship_orientation;
-                lcd_msg.payload.battleship.border_color = BATTLESHIP_CURSOR_COLOR;
+                lcd_msg.payload.battleship.border_color = LCD_COLOR_GREEN;
                 lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
                 xQueueSend(xQueue_LCD, &lcd_msg, 0);
                 xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
             }
         }
 
-        
         /* SW2 - Place ship on the board */
         if (button_event & ECE353_RTOS_EVENTS_SW2)
         {
             xEventGroupClearBits(ECE353_RTOS_Events, ECE353_RTOS_EVENTS_SW2);
-            
+
             if (current_ship >= 5)
             {
                 printf("ERROR: current_ship out of bounds (%d)\r\n", current_ship);
@@ -523,7 +535,7 @@ void task_system_control(void *arg)
             }
 
             uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
-            printf("Attempting to place ship %d (type=%d, length=%d) at (%d,%d)\r\n", 
+            printf("Attempting to place ship %d (type=%d, length=%d) at (%d,%d)\r\n",
                    current_ship, ship_types[current_ship], ship_length, cursor_col, cursor_row);
 
             /* Check if ship will fit within board */
@@ -548,11 +560,11 @@ void task_system_control(void *arg)
 
             if (placement_success)
             {
-                printf("Ship %d placed at (%d, %d) - %s - ships_placed now %d\r\n", 
-                       current_ship, cursor_col, cursor_row, 
-                       ship_orientation ? "horizontal" : "vertical", 
+                printf("Ship %d placed at (%d, %d) - %s - ships_placed now %d\r\n",
+                       current_ship, cursor_col, cursor_row,
+                       ship_orientation ? "horizontal" : "vertical",
                        ships_placed + 1);
-                
+
                 /* Draw the placed ship in green */
                 lcd_msg.command = LCD_CMD_DRAW_SHIP;
                 lcd_msg.response_queue = xQueue_LCD_response;
@@ -560,7 +572,7 @@ void task_system_control(void *arg)
                 lcd_msg.payload.battleship.col = cursor_col;
                 lcd_msg.payload.battleship.type = ship_types[current_ship];
                 lcd_msg.payload.battleship.horizontal = ship_orientation;
-                lcd_msg.payload.battleship.border_color = BATTLESHIP_CURSOR_COLOR;
+                lcd_msg.payload.battleship.border_color = LCD_COLOR_GREEN;
                 lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
                 xQueueSend(xQueue_LCD, &lcd_msg, 0);
                 xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
@@ -591,7 +603,7 @@ void task_system_control(void *arg)
             }
             else
             {
-                printf("Placement failed for ship %d at (%d,%d). fits_in_board=%d\r\n", 
+                printf("Placement failed for ship %d at (%d,%d). fits_in_board=%d\r\n",
                        current_ship, cursor_col, cursor_row, fits_in_board);
                 ipc_send_error(IPC_ERROR_COORD_OCCUPIED);
             }
@@ -606,28 +618,122 @@ void task_system_control(void *arg)
 
     vTaskDelay(pdMS_TO_TICKS(500));
 
-    /* Game loop: show whose turn it is */
-    uint32_t game_timeout = 30000; /* 30 seconds for testing */
+    /* Game loop: attack phase */
+    uint32_t game_timeout = 60000; /* 60 seconds for testing */
     uint32_t game_elapsed = 0;
+    char score_buffer[32];
+
+    /* Target coordinates for attack */
+    uint8_t target_row = 0, target_col = 0;
+    uint32_t last_joystick_move = 0;
+    const uint32_t JOYSTICK_DEBOUNCE = 300;
+
     while (!game_over && game_elapsed < game_timeout)
     {
-        /* Update display with current turn */
+        /* Display my hits count */
         lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
         lcd_msg.response_queue = xQueue_LCD_response;
         console_payload = &lcd_msg.payload.console;
         console_payload->x_offset = 210;
-        console_payload->y_offset = 220;
+        console_payload->y_offset = 50;
+        sprintf(score_buffer, "Hits: %d", my_hits);
+        console_payload->message = score_buffer;
+        console_payload->length = strlen(console_payload->message);
+        xQueueSend(xQueue_LCD, &lcd_msg, 0);
+        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+        /* Display my misses count */
+        lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
+        lcd_msg.response_queue = xQueue_LCD_response;
+        console_payload->x_offset = 210;
+        console_payload->y_offset = 100;
+        sprintf(score_buffer, "Misses: %d", my_misses);
+        console_payload->message = score_buffer;
+        console_payload->length = strlen(console_payload->message);
+        xQueueSend(xQueue_LCD, &lcd_msg, 0);
+        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+        /* Display current turn and target */
+        lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
+        lcd_msg.response_queue = xQueue_LCD_response;
+        console_payload->x_offset = 210;
+        console_payload->y_offset = 150;
         if (current_turn == player_id)
         {
             console_payload->message = "YOURS";
         }
         else
         {
-            console_payload->message = "OPPONENT";
+            console_payload->message = "OPPNT";
         }
         console_payload->length = strlen(console_payload->message);
         xQueueSend(xQueue_LCD, &lcd_msg, 0);
         xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+        /* If it's my turn, use joystick to aim and SW1 to fire */
+        if (current_turn == player_id)
+        {
+            /* Check joystick for target movement */
+            joystick_position_t joystick_pos;
+            uint32_t current_time = xTaskGetTickCount();
+
+            if (xQueuePeek(Queue_Joystick, &joystick_pos, pdMS_TO_TICKS(10)) == pdTRUE)
+            {
+                if ((current_time - last_joystick_move) >= pdMS_TO_TICKS(JOYSTICK_DEBOUNCE))
+                {
+                    switch (joystick_pos)
+                    {
+                    case JOYSTICK_POS_LEFT:
+                    case JOYSTICK_POS_UPPER_LEFT:
+                    case JOYSTICK_POS_LOWER_LEFT:
+                        target_col = (target_col > 0) ? target_col - 1 : 9;
+                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                        last_joystick_move = current_time;
+                        break;
+                    case JOYSTICK_POS_RIGHT:
+                    case JOYSTICK_POS_UPPER_RIGHT:
+                    case JOYSTICK_POS_LOWER_RIGHT:
+                        target_col = (target_col < 9) ? target_col + 1 : 0;
+                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                        last_joystick_move = current_time;
+                        break;
+                    case JOYSTICK_POS_UP:
+                        target_row = (target_row > 0) ? target_row - 1 : 9;
+                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                        last_joystick_move = current_time;
+                        break;
+                    case JOYSTICK_POS_DOWN:
+                        target_row = (target_row < 9) ? target_row + 1 : 0;
+                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                        last_joystick_move = current_time;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            }
+
+            /* Check for SW1 press to fire */
+            EventBits_t button_event = xEventGroupWaitBits(ECE353_RTOS_Events,
+                                                           ECE353_RTOS_EVENTS_SW1,
+                                                           pdTRUE,  /* Clear the bit */
+                                                           pdFALSE, /* Don't wait for all bits */
+                                                           pdMS_TO_TICKS(10));
+
+            if (button_event & ECE353_RTOS_EVENTS_SW1)
+            {
+                /* Send fire command with target coordinates */
+                printf("FIRING at row=%d, col=%d\r\n", target_row, target_col);
+                ipc_send_fire(target_row, target_col);
+
+                /* Pass turn to opponent */
+                ipc_send_game_control(IPC_GAME_CONTROL_PASS_TURN);
+                current_turn = 1 - current_turn;
+
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
+        }
+
         vTaskDelay(pdMS_TO_TICKS(100));
         game_elapsed += 100;
         /* game_over will be set by IPC RX task when win condition detected */

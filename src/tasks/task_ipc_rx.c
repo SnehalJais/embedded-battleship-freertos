@@ -40,6 +40,8 @@ volatile ipc_packet_t *volatile IPC_Rx_Consume_Buffer = &IPC_Rx_Buffer0;
  */
 void task_ipc_rx(void *param)
 {
+    /* Forward declaration of occupied_board from hw05.c */
+    extern uint8_t occupied_board[10][10];
 
     while (1)
     {
@@ -53,17 +55,58 @@ void task_ipc_rx(void *param)
         if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_FIRE)
         {
             // Valid FIRE command
-            printf("IPC RX Task       : Fire at row=%d, col=%d\n\r",
-                   IPC_Rx_Consume_Buffer->load.fire.row,
-                   IPC_Rx_Consume_Buffer->load.fire.col);
+            uint8_t fire_row = IPC_Rx_Consume_Buffer->load.fire.row;
+            uint8_t fire_col = IPC_Rx_Consume_Buffer->load.fire.col;
+            printf("IPC RX Task       : Fire at row=%d, col=%d\n\r", fire_row, fire_col);
+            
+            // Check if opponent hit one of my ships
+            ipc_result_t result;
+            extern uint16_t opponent_hits;
+            extern uint16_t opponent_misses;
+            
+            if (fire_row < 10 && fire_col < 10 && occupied_board[fire_row][fire_col] == 1)
+            {
+                // HIT - opponent hit my ship at this coordinate
+                result = IPC_RESULT_HIT;
+                occupied_board[fire_row][fire_col] = 2; // Mark as hit (optional: for tracking)
+                opponent_hits++;
+                printf("  --> HIT on my ship! (Opponent hits: %d)\n\r", opponent_hits);
+            }
+            else
+            {
+                // MISS - no ship at this coordinate
+                result = IPC_RESULT_MISS;
+                opponent_misses++;
+                printf("  --> MISS! (Opponent misses: %d)\n\r", opponent_misses);
+            }
+            
+            // Send result back to opponent
+            ipc_send_result(result);
         }
         else if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_RESULT)
         {
-            // Valid RESULT command
+            // Valid RESULT command - this is the response to MY fire command
+            extern uint16_t my_hits;
+            extern uint16_t my_misses;
+            
             const char *result_str = (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_MISS) ? "MISS" : (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_HIT) ? "HIT"
                                                                                                     : (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)  ? "SUNK"
                                                                                                                                                                : "UNKNOWN";
             printf("IPC RX Task       : Result: %s\n\r", result_str);
+            
+            /* Increment my hit/miss counters based on opponent's response */
+            if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_HIT)
+            {
+                extern uint16_t my_hits;
+                my_hits++;
+                printf("  --> I hit! (My total hits: %d)\n\r", my_hits);
+            }
+            else if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_MISS)
+            {
+                extern uint16_t my_misses;
+                my_misses++;
+                printf("  --> I missed! (My total misses: %d)\n\r", my_misses);
+            }
             
             /* Check for END_GAME result to detect win condition */
             if (IPC_Rx_Consume_Buffer->load.result == IPC_GAME_CONTROL_END_GAME)
