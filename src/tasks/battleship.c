@@ -18,6 +18,9 @@
 // Game board to track ship positions (0 = empty, 1 = occupied)
 // [row][col]
 static uint8_t game_board[10][10] = {0};
+extern bool light_mode; // checking if light mode or dark mode
+extern uint16_t board_tile_fill_color; // Board tile color (white or black)
+uint16_t tile_color;
 
 // length of ship based on type
 uint8_t battleship_get_ship_length(battleship_type_t type)
@@ -38,6 +41,18 @@ uint8_t battleship_get_ship_length(battleship_type_t type)
         return 0;
     default:
         return 0;
+    }
+}
+
+bool battleship_check_light_mode(light_mode)
+{
+    if (light_mode)
+    {
+        tile_color = LCD_COLOR_WHITE;
+    }
+    else
+    {
+        tile_color = LCD_COLOR_BLACK;
     }
 }
 
@@ -90,12 +105,12 @@ bool battleship_draw_game_board()
             // Draw the outer blue rectangle (border)
             lcd_draw_rectangle(x, y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, LCD_COLOR_BLUE, false);
 
-            // Draw the inner black rectangle (fill) to create border effect
+            // Draw the inner rectangle with board_tile_fill_color to create border effect
             lcd_draw_rectangle(x + BATTLESHIP_BORDER_WIDTH / 2,
                                y + BATTLESHIP_BORDER_WIDTH / 2,
                                BATTLESHIP_BOX_WIDTH - BATTLESHIP_BORDER_WIDTH,
                                BATTLESHIP_BOX_HEIGHT - BATTLESHIP_BORDER_WIDTH,
-                               LCD_COLOR_BLACK, false);
+                               board_tile_fill_color, false);
         }
     }
     return true;

@@ -69,12 +69,17 @@ uint16_t opponent_misses = 0; /* Number of times opponent missed */
 /* 0 = empty, 1 = ship placed here */
 /* This is used by task_ipc_rx.c to check opponent's fire commands */
 uint8_t occupied_board[10][10] = {0};
+bool light_mode; // checking if light mode or dark mode
+#define LIGHT_THRESHOLD 200
 
+/* Board tile color - determined at game start and stays consistent */
+uint16_t board_tile_fill_color = LCD_COLOR_BLACK; /* Default to black (dark mode) */
 
 /*****************************************************************************/
 /* Function Declarations                                                     */
 /*****************************************************************************/
 void task_system_control(void *arg);
+void light_mode_sensor(void);
 void task_gameplay(void);
 void draw_initial_board(void);
 void initialize_game_players(void);
@@ -126,8 +131,6 @@ void draw_initial_board(void)
 
     vTaskDelay(pdMS_TO_TICKS(200));
 }
-
-
 
 /**
  * @brief
@@ -253,6 +256,27 @@ void draw_battleship_board(void)
     lcd_msg.response_queue = xQueue_LCD_response;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+}
+
+void light_mode_sensor(void)
+{
+    uint16_t ambient_light = 0;
+
+    system_sensors_get_light(Queue_Sensor_Responses, &ambient_light);
+    printf("Ambient light reading: %d (threshold: %d)\r\n", ambient_light, LIGHT_THRESHOLD);
+
+    if ((LIGHT_THRESHOLD) < ambient_light)
+    {
+        light_mode = true;
+        board_tile_fill_color = LCD_COLOR_WHITE; /* Light mode = white tiles */
+        printf("LIGHT MODE: Using WHITE tiles\r\n");
+    }
+    else
+    {
+        light_mode = false;
+        board_tile_fill_color = LCD_COLOR_BLACK; /* Dark mode = black tiles */
+        printf("DARK MODE: Using BLACK tiles\r\n");
+    }
 }
 
 /**
@@ -448,7 +472,6 @@ void task_ship_placement(void)
     lcd_msg_t lcd_msg;
     lcd_cmd_status_t status;
 
-
     /* Ship placement using battleship.c functions */
     battleship_type_t ship_types[5] = {
         BATTLESHIP_TYPE_DESTROYER,  /* Smallest ship - length 2 */
@@ -578,7 +601,7 @@ void task_ship_placement(void)
                     lcd_msg.response_queue = xQueue_LCD_response;
                     lcd_msg.payload.battleship.row = clear_row;
                     lcd_msg.payload.battleship.col = clear_col;
-                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
+                    lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
                     lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
                     xQueueSend(xQueue_LCD, &lcd_msg, 0);
                     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
@@ -640,7 +663,8 @@ void task_ship_placement(void)
                         lcd_msg.response_queue = xQueue_LCD_response;
                         lcd_msg.payload.battleship.row = clear_row;
                         lcd_msg.payload.battleship.col = clear_col;
-                        lcd_msg.payload.battleship.fill_color = LCD_COLOR_BLACK;
+                        lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
+                        lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
                         xQueueSend(xQueue_LCD, &lcd_msg, 0);
                         xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
                     }
@@ -766,35 +790,35 @@ void task_ship_placement(void)
  * @return false
  */
 bool task_system_control_resources_init(void)
+{
+    /* Create the I2C Semaphore */
+    Semaphore_I2C = xSemaphoreCreateMutex();
+    if (Semaphore_I2C == NULL)
     {
-        /* Create the I2C Semaphore */
-        Semaphore_I2C = xSemaphoreCreateMutex();
-        if (Semaphore_I2C == NULL)
-        {
-            return false;
-        }
-
-        /* Create the SPI Semaphore */
-        Semaphore_SPI = xSemaphoreCreateMutex();
-        if (Semaphore_SPI == NULL)
-        {
-            return false;
-        }
-
-        /* Create the System Control Task */
-        if (xTaskCreate(
-                task_system_control,
-                "System Control Task",
-                configMINIMAL_STACK_SIZE * 5,
-                NULL,
-                tskIDLE_PRIORITY + 1,
-                NULL) != pdPASS)
-        {
-            return false;
-        }
-
-        return true;
+        return false;
     }
+
+    /* Create the SPI Semaphore */
+    Semaphore_SPI = xSemaphoreCreateMutex();
+    if (Semaphore_SPI == NULL)
+    {
+        return false;
+    }
+
+    /* Create the System Control Task */
+    if (xTaskCreate(
+            task_system_control,
+            "System Control Task",
+            configMINIMAL_STACK_SIZE * 5,
+            NULL,
+            tskIDLE_PRIORITY + 1,
+            NULL) != pdPASS)
+    {
+        return false;
+    }
+
+    return true;
+}
 
 /**
  * @brief
@@ -818,17 +842,14 @@ void task_system_control(void *arg)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
+    /* Check ambient light FIRST to set board tile color for entire game */
+    light_mode_sensor();
+
+    draw_initial_board();
+
     /* Clear the LCD screen */
     lcd_msg_t lcd_msg;
     lcd_cmd_status_t status;
-
-    lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
-    lcd_msg.response_queue = xQueue_LCD_response;
-    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-    /* Draw initial board with hits/misses display */
-    draw_initial_board();
 
     lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
     lcd_msg.response_queue = xQueue_LCD_response;

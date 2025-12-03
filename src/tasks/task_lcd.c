@@ -131,10 +131,10 @@ void task_lcd(void *pvParameters)
             uint16_t x = BATTLE_SHIP_LEFT_MARGIN + (lcd_msg.payload.battleship.col * BATTLESHIP_BOX_WIDTH);
             uint16_t y = BATTLE_SHIP_TOP_MARGIN + (lcd_msg.payload.battleship.row * BATTLESHIP_BOX_HEIGHT);
 
-            // Always draw the blue border first to maintain board structure
-            lcd_draw_rectangle(x, y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, LCD_COLOR_BLUE, false);
+            // Draw the border with specified border color
+            lcd_draw_rectangle(x, y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, lcd_msg.payload.battleship.border_color, false);
 
-            // Then draw the inner rectangle with the specified fill color
+            // Then draw the inner rectangle with the specified fill color from payload
             lcd_draw_rectangle(x + BATTLESHIP_BORDER_WIDTH / 2,
                                y + BATTLESHIP_BORDER_WIDTH / 2,
                                BATTLESHIP_BOX_WIDTH - BATTLESHIP_BORDER_WIDTH,
