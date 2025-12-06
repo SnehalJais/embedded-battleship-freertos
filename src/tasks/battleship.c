@@ -18,8 +18,11 @@
 // Game board to track ship positions (0 = empty, 1 = occupied)
 // [row][col]
 static uint8_t game_board[10][10] = {0};
-extern bool light_mode; // checking if light mode or dark mode
+extern bool light_mode;                // checking if light mode or dark mode
+extern uint8_t player_id;              // 0=Player1, 1=Player2, 255=unassigned
 extern uint16_t board_tile_fill_color; // Board tile color (white or black)
+extern uint16_t board_border_color;    // Board border color (blue for Player 1, red for Player 2)
+extern QueueHandle_t Queue_Sensor_Responses; // Light sensor response queue
 uint16_t tile_color;
 
 // length of ship based on type
@@ -56,6 +59,7 @@ bool battleship_check_light_mode(light_mode)
     }
 }
 
+
 /**
  * @brief Get the coordinates of a box on the LCD screen.
  *
@@ -81,6 +85,58 @@ bool battleship_get_box_coordinates(lcd_coord_t *coord, uint8_t col, uint8_t row
 
 /**
  * @brief
+ * Check light threshold every 0.5 seconds and update tile color if crossed
+ * Returns true if threshold was crossed and color changed, false otherwise
+ */
+bool battleship_check_light_threshold(void)
+{
+    static uint32_t last_check_time = 0;
+    static bool last_light_mode = false;
+    const uint16_t LIGHT_THRESHOLD = 200; /* Must match hw05.c threshold */
+    
+    uint32_t current_time = xTaskGetTickCount();
+    
+    /* Only check every 0.5 seconds */
+    if (current_time - last_check_time < pdMS_TO_TICKS(500))
+    {
+        return false;
+    }
+    
+    last_check_time = current_time;
+    
+    /* Read current light level */
+    uint16_t ambient_light = 0;
+    system_sensors_get_light(Queue_Sensor_Responses, &ambient_light);
+    printf("Light check: ambient=%d, threshold=%d\r\n", ambient_light, LIGHT_THRESHOLD);
+    
+    /* Determine new light mode */
+    bool new_light_mode = (LIGHT_THRESHOLD) < ambient_light;
+    
+    /* If threshold was crossed, update tile color */
+    if (new_light_mode != last_light_mode)
+    {
+        light_mode = new_light_mode;
+        
+        if (light_mode)
+        {
+            board_tile_fill_color = LCD_COLOR_WHITE; /* Light mode = white tiles */
+            printf("Light threshold crossed: LIGHT MODE - WHITE tiles\r\n");
+        }
+        else
+        {
+            board_tile_fill_color = LCD_COLOR_BLACK; /* Dark mode = black tiles */
+            printf("Light threshold crossed: DARK MODE - BLACK tiles\r\n");
+        }
+        
+        last_light_mode = new_light_mode;
+        return true; /* Threshold was crossed */
+    }
+    
+    return false; /* No threshold crossing */
+}
+
+/**
+ * @brief
  * Draw a 10x10 grid of blue Battleship rectangles.
  * Each rectangle is 20 pixels by 20 pixels.
  * @param player_id
@@ -102,8 +158,8 @@ bool battleship_draw_game_board()
             uint16_t x = BATTLE_SHIP_LEFT_MARGIN + (col * BATTLESHIP_BOX_WIDTH);
             uint16_t y = BATTLE_SHIP_TOP_MARGIN + (row * BATTLESHIP_BOX_HEIGHT);
 
-            // Draw the outer blue rectangle (border)
-            lcd_draw_rectangle(x, y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, LCD_COLOR_BLUE, false);
+            // Draw the outer rectangle with player-specific border color
+            lcd_draw_rectangle(x, y, BATTLESHIP_BOX_WIDTH, BATTLESHIP_BOX_HEIGHT, board_border_color, false);
 
             // Draw the inner rectangle with board_tile_fill_color to create border effect
             lcd_draw_rectangle(x + BATTLESHIP_BORDER_WIDTH / 2,

@@ -59,6 +59,8 @@ bool i_won = false;            /* Flag set if I won the game */
 uint8_t current_turn = 0;      /* 0 = Player 0's turn, 1 = Player 1's turn (alternates during gameplay) */
 EventGroupHandle_t ECE353_RTOS_Events = NULL;
 
+/* Board border color - determined by player ID (Blue for Player 1, Red for Player 2) */
+uint16_t board_border_color = LCD_COLOR_BLUE; /* Will be set in initialize_game_players() */
 /* Hit and Miss counters for game play */
 uint16_t my_hits = 0;         /* Number of times I hit opponent's ships */
 uint16_t my_misses = 0;       /* Number of times I missed */
@@ -85,6 +87,7 @@ void draw_initial_board(void);
 void initialize_game_players(void);
 void draw_battleship_board(void);
 void task_ship_placement(void);
+bool battleship_check_light_threshold(void);
 
 /*****************************************************************************/
 /* Function Definitions                                                      */
@@ -194,6 +197,18 @@ void initialize_game_players(void)
 
     printf("Player ID set to: %d\r\n", player_id);
 
+    /* Set border color based on player ID */
+    if (player_id == 0)
+    {
+        board_border_color = LCD_COLOR_BLUE; /* Player 1 (0) = Blue border */
+        printf("Border color: BLUE (Player 1)\r\n");
+    }
+    else
+    {
+        board_border_color = LCD_COLOR_RED; /* Player 2 (1) = Red border */
+        printf("Border color: RED (Player 2)\r\n");
+    }
+
     /* Set up rotation for next game: opposite of current */
     if (player_id == 0)
     {
@@ -211,14 +226,14 @@ void initialize_game_players(void)
     /* If Player 1, wait for ACK from opponent */
     if (player_id == 0)
     {
-        printf("Waiting for opponent ACK...\r\n");
-        uint32_t timeout = 5000; /* 5 second timeout in ms */
-        uint32_t elapsed = 0;
-        while (!ack_received && elapsed < timeout)
-        {
-            vTaskDelay(pdMS_TO_TICKS(100));
-            elapsed += 100;
-        }
+        // printf("Waiting for opponent ACK...\r\n");
+        // uint32_t timeout = 5000; /* 5 second timeout in ms */
+        // uint32_t elapsed = 0;
+        // while (!ack_received && elapsed < timeout)
+        // {
+        //     vTaskDelay(pdMS_TO_TICKS(100));
+        //     elapsed += 100;
+        // }
 
         if (ack_received)
         {
@@ -299,117 +314,121 @@ void task_gameplay(void)
     uint8_t target_row = 0, target_col = 0;
     uint32_t last_joystick_move = 0;
     const uint32_t JOYSTICK_DEBOUNCE = 300;
-
-    while (!game_over && game_elapsed < game_timeout)
-    {
-        /* Display my hits count */
-        lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
-        lcd_msg.response_queue = xQueue_LCD_response;
-        console_payload = &lcd_msg.payload.console;
-        console_payload->x_offset = 210;
-        console_payload->y_offset = 50;
-        sprintf(score_buffer, "Hits: %d", my_hits);
-        console_payload->message = score_buffer;
-        console_payload->length = strlen(console_payload->message);
-        xQueueSend(xQueue_LCD, &lcd_msg, 0);
-        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-        /* Display my misses count */
-        lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
-        lcd_msg.response_queue = xQueue_LCD_response;
-        console_payload->x_offset = 210;
-        console_payload->y_offset = 100;
-        sprintf(score_buffer, "Misses: %d", my_misses);
-        console_payload->message = score_buffer;
-        console_payload->length = strlen(console_payload->message);
-        xQueueSend(xQueue_LCD, &lcd_msg, 0);
-        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-
-        /* Display current turn and target */
-        lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
-        lcd_msg.response_queue = xQueue_LCD_response;
-        console_payload->x_offset = 210;
-        console_payload->y_offset = 150;
-        if (current_turn == player_id)
+  
+        while (!game_over && game_elapsed < game_timeout )
         {
-            console_payload->message = "YOURS";
-        }
-        else
-        {
-            console_payload->message = "OPPNT";
-        }
-        console_payload->length = strlen(console_payload->message);
-        xQueueSend(xQueue_LCD, &lcd_msg, 0);
-        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+            /* Check if light threshold has changed - updates board_tile_fill_color if needed */
+            battleship_check_light_threshold();
 
-        /* If it's my turn, use joystick to aim and SW1 to fire */
-        if (current_turn == player_id)
-        {
-            /* Check joystick for target movement */
-            joystick_position_t joystick_pos;
-            uint32_t current_time = xTaskGetTickCount();
 
-            if (xQueuePeek(Queue_Joystick, &joystick_pos, pdMS_TO_TICKS(10)) == pdTRUE)
+            /* Display my hits count */
+            lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
+            lcd_msg.response_queue = xQueue_LCD_response;
+            console_payload = &lcd_msg.payload.console;
+            console_payload->x_offset = 210;
+            console_payload->y_offset = 50;
+            sprintf(score_buffer, "Hits: %d", my_hits);
+            console_payload->message = score_buffer;
+            console_payload->length = strlen(console_payload->message);
+            xQueueSend(xQueue_LCD, &lcd_msg, 0);
+            xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+            /* Display my misses count */
+            lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
+            lcd_msg.response_queue = xQueue_LCD_response;
+            console_payload->x_offset = 210;
+            console_payload->y_offset = 100;
+            sprintf(score_buffer, "Misses: %d", my_misses);
+            console_payload->message = score_buffer;
+            console_payload->length = strlen(console_payload->message);
+            xQueueSend(xQueue_LCD, &lcd_msg, 0);
+            xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+            /* Display current turn and target */
+            lcd_msg.command = LCD_CONSOLE_DRAW_MESSAGE;
+            lcd_msg.response_queue = xQueue_LCD_response;
+            console_payload->x_offset = 210;
+            console_payload->y_offset = 150;
+            if (current_turn == player_id)
             {
-                if ((current_time - last_joystick_move) >= pdMS_TO_TICKS(JOYSTICK_DEBOUNCE))
+                console_payload->message = "YOURS";
+            }
+            else
+            {
+                console_payload->message = "OPPNT";
+            }
+            console_payload->length = strlen(console_payload->message);
+            xQueueSend(xQueue_LCD, &lcd_msg, 0);
+            xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+            /* If it's my turn, use joystick to aim and SW1 to fire */
+            if (current_turn == player_id)
+            {
+                /* Check joystick for target movement */
+                joystick_position_t joystick_pos;
+                uint32_t current_time = xTaskGetTickCount();
+
+                if (xQueueReceive(Queue_Joystick, &joystick_pos, pdMS_TO_TICKS(10)) == pdTRUE)
                 {
-                    switch (joystick_pos)
+                    if ((current_time - last_joystick_move) >= pdMS_TO_TICKS(JOYSTICK_DEBOUNCE))
                     {
-                    case JOYSTICK_POS_LEFT:
-                    case JOYSTICK_POS_UPPER_LEFT:
-                    case JOYSTICK_POS_LOWER_LEFT:
-                        target_col = (target_col > 0) ? target_col - 1 : 9;
-                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
-                        last_joystick_move = current_time;
-                        break;
-                    case JOYSTICK_POS_RIGHT:
-                    case JOYSTICK_POS_UPPER_RIGHT:
-                    case JOYSTICK_POS_LOWER_RIGHT:
-                        target_col = (target_col < 9) ? target_col + 1 : 0;
-                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
-                        last_joystick_move = current_time;
-                        break;
-                    case JOYSTICK_POS_UP:
-                        target_row = (target_row > 0) ? target_row - 1 : 9;
-                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
-                        last_joystick_move = current_time;
-                        break;
-                    case JOYSTICK_POS_DOWN:
-                        target_row = (target_row < 9) ? target_row + 1 : 0;
-                        printf("Target: col=%d, row=%d\r\n", target_col, target_row);
-                        last_joystick_move = current_time;
-                        break;
-                    default:
-                        break;
+                        switch (joystick_pos)
+                        {
+                        case JOYSTICK_POS_LEFT:
+                        case JOYSTICK_POS_UPPER_LEFT:
+                        case JOYSTICK_POS_LOWER_LEFT:
+                            target_col = (target_col > 0) ? target_col - 1 : 9;
+                            printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                            last_joystick_move = current_time;
+                            break;
+                        case JOYSTICK_POS_RIGHT:
+                        case JOYSTICK_POS_UPPER_RIGHT:
+                        case JOYSTICK_POS_LOWER_RIGHT:
+                            target_col = (target_col < 9) ? target_col + 1 : 0;
+                            printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                            last_joystick_move = current_time;
+                            break;
+                        case JOYSTICK_POS_UP:
+                            target_row = (target_row > 0) ? target_row - 1 : 9;
+                            printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                            last_joystick_move = current_time;
+                            break;
+                        case JOYSTICK_POS_DOWN:
+                            target_row = (target_row < 9) ? target_row + 1 : 0;
+                            printf("Target: col=%d, row=%d\r\n", target_col, target_row);
+                            last_joystick_move = current_time;
+                            break;
+                        default:
+                            break;
+                        }
                     }
+                }
+
+                /* Check for SW1 press to fire */
+                EventBits_t button_event = xEventGroupWaitBits(ECE353_RTOS_Events,
+                                                               ECE353_RTOS_EVENTS_SW1,
+                                                               pdTRUE,  /* Clear the bit */
+                                                               pdFALSE, /* Don't wait for all bits */
+                                                               pdMS_TO_TICKS(10));
+
+                if (button_event & ECE353_RTOS_EVENTS_SW1)
+                {
+                    /* Send fire command with target coordinates */
+                    printf("FIRING at row=%d, col=%d\r\n", target_row, target_col);
+                    ipc_send_fire(target_row, target_col);
+
+                    /* Pass turn to opponent */
+                    ipc_send_game_control(IPC_GAME_CONTROL_PASS_TURN);
+                    current_turn = 1 - current_turn;
+
+                    vTaskDelay(pdMS_TO_TICKS(500));
                 }
             }
 
-            /* Check for SW1 press to fire */
-            EventBits_t button_event = xEventGroupWaitBits(ECE353_RTOS_Events,
-                                                           ECE353_RTOS_EVENTS_SW1,
-                                                           pdTRUE,  /* Clear the bit */
-                                                           pdFALSE, /* Don't wait for all bits */
-                                                           pdMS_TO_TICKS(10));
-
-            if (button_event & ECE353_RTOS_EVENTS_SW1)
-            {
-                /* Send fire command with target coordinates */
-                printf("FIRING at row=%d, col=%d\r\n", target_row, target_col);
-                ipc_send_fire(target_row, target_col);
-
-                /* Pass turn to opponent */
-                ipc_send_game_control(IPC_GAME_CONTROL_PASS_TURN);
-                current_turn = 1 - current_turn;
-
-                vTaskDelay(pdMS_TO_TICKS(500));
-            }
+            vTaskDelay(pdMS_TO_TICKS(100));
+            game_elapsed += 100;
+            /* game_over will be set by IPC RX task when win condition detected */
         }
-
-        vTaskDelay(pdMS_TO_TICKS(100));
-        game_elapsed += 100;
-        /* game_over will be set by IPC RX task when win condition detected */
-    }
 
     /* If timeout reached, test with a win condition */
     if (!game_over)
@@ -453,6 +472,7 @@ void task_gameplay(void)
     console_payload->length = strlen(console_payload->message);
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
 
     vTaskDelay(pdMS_TO_TICKS(3000)); /* Show result for 3 seconds */
 
@@ -515,6 +535,29 @@ void task_ship_placement(void)
 
     while (ships_placed < 5)
     {
+        /* Check if light threshold has changed - updates board_tile_fill_color if needed */
+        if (battleship_check_light_threshold())
+        {
+            /* Light threshold crossed - redraw all empty tiles with new color (preserves placed ships) */
+            for (uint8_t row = 0; row < 10; row++)
+            {
+                for (uint8_t col = 0; col < 10; col++)
+                {
+                    if (occupied_board[row][col] == 0) /* Only redraw empty tiles */
+                    {
+                        lcd_msg.command = LCD_CMD_DRAW_TILE;
+                        lcd_msg.response_queue = xQueue_LCD_response;
+                        lcd_msg.payload.battleship.row = row;
+                        lcd_msg.payload.battleship.col = col;
+                        lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
+                        lcd_msg.payload.battleship.border_color = board_border_color;
+                        xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
+                    }
+                }
+            }
+        }
+
         bool ship_moved = false;
 
         /* Read IMU data - continuous movement based on tilt */
@@ -602,7 +645,7 @@ void task_ship_placement(void)
                     lcd_msg.payload.battleship.row = clear_row;
                     lcd_msg.payload.battleship.col = clear_col;
                     lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
-                    lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
+                    lcd_msg.payload.battleship.border_color = board_border_color;
                     xQueueSend(xQueue_LCD, &lcd_msg, 0);
                     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
                 }
@@ -664,7 +707,7 @@ void task_ship_placement(void)
                         lcd_msg.payload.battleship.row = clear_row;
                         lcd_msg.payload.battleship.col = clear_col;
                         lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
-                        lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE;
+                        lcd_msg.payload.battleship.border_color = board_border_color;
                         xQueueSend(xQueue_LCD, &lcd_msg, 0);
                         xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
                     }
@@ -841,9 +884,6 @@ void task_system_control(void *arg)
     {
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-
-    /* Check ambient light FIRST to set board tile color for entire game */
-    light_mode_sensor();
 
     draw_initial_board();
 
