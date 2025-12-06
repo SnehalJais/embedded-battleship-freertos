@@ -107,7 +107,7 @@ bool battleship_check_light_threshold(void)
     /* Read current light level */
     uint16_t ambient_light = 0;
     system_sensors_get_light(Queue_Sensor_Responses, &ambient_light);
-    printf("Light check: ambient=%d, threshold=%d\r\n", ambient_light, LIGHT_THRESHOLD);
+   // printf("Light check: ambient=%d, threshold=%d\r\n", ambient_light, LIGHT_THRESHOLD);
     
     /* Determine new light mode */
     bool new_light_mode = (LIGHT_THRESHOLD) < ambient_light;

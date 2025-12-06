@@ -43,14 +43,14 @@ void task_joystick(void *arg)
     (void)arg; // Unused parameter
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(10)); // Poll every 10ms for faster response
         x_value = joystick_read_x();
         y_value = joystick_read_y();
 
         float x_volatage = (x_value / 65535.0) * 3.3;
         float y_volatage = (y_value / 65535.0) * 3.3;
 
-        printf("X: %f, Y: %f\r\n", x_volatage, y_volatage);
+        // printf("X: %f, Y: %f\r\n", x_volatage, y_volatage);
 
         // Get the current joystick position
         current_position = joystick_get_pos();
@@ -58,15 +58,15 @@ void task_joystick(void *arg)
         // Add series of if/else if statements to detect joystick direction
         if (current_position == JOYSTICK_POS_CENTER)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_CENTER]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_CENTER]);
         }
         else if (current_position == JOYSTICK_POS_LEFT)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_LEFT]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_LEFT]);
         }
         else if (current_position == JOYSTICK_POS_RIGHT)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_RIGHT]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_RIGHT]);
         }
         else if (current_position == JOYSTICK_POS_UP)
         {
@@ -74,23 +74,23 @@ void task_joystick(void *arg)
         }
         else if (current_position == JOYSTICK_POS_DOWN)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_DOWN]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_DOWN]);
         }
         else if (current_position == JOYSTICK_POS_UPPER_LEFT)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_UPPER_LEFT]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_UPPER_LEFT]);
         }
         else if (current_position == JOYSTICK_POS_UPPER_RIGHT)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_UPPER_RIGHT]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_UPPER_RIGHT]);
         }
         else if (current_position == JOYSTICK_POS_LOWER_LEFT)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_LOWER_LEFT]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_LOWER_LEFT]);
         }
         else if (current_position == JOYSTICK_POS_LOWER_RIGHT)
         {
-            printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_LOWER_RIGHT]);
+            // printf("Joystick Position: %s\r\n", joystick_pos_names[JOYSTICK_POS_LOWER_RIGHT]);
         }
 
         // If the current position is not equal to the previous position, add the new position to the joystick queue

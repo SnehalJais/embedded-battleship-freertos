@@ -53,9 +53,13 @@ void task_ipc_rx(void *param)
         if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_FIRE)
         {
             // Valid FIRE command
-            printf("IPC RX Task       : Fire at row=%d, col=%d\n\r",
-                   IPC_Rx_Consume_Buffer->load.fire.row,
-                   IPC_Rx_Consume_Buffer->load.fire.col);
+            uint8_t fire_row = IPC_Rx_Consume_Buffer->load.fire.row;
+            uint8_t fire_col = IPC_Rx_Consume_Buffer->load.fire.col;
+            printf("IPC RX Task       : Fire at row=%d, col=%d\n\r", fire_row, fire_col);
+            
+            /* Call handler function in hw05.c */
+            extern void handle_incoming_fire(uint8_t fire_row, uint8_t fire_col);
+            handle_incoming_fire(fire_row, fire_col);
         }
         else if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_RESULT)
         {
@@ -65,14 +69,18 @@ void task_ipc_rx(void *param)
                                                                                                                                                                : "UNKNOWN";
             printf("IPC RX Task       : Result: %s\n\r", result_str);
             
-            /* Check for END_GAME result to detect win condition */
-            if (IPC_Rx_Consume_Buffer->load.result == IPC_GAME_CONTROL_END_GAME)
+            /* If opponent's ship was sunk, update LED counter */
+            if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)
             {
-                extern bool game_over;
-                extern bool i_won;
-                printf("GAME END DETECTED!\n\r");
-                game_over = true;
-                i_won = true;  /* If opponent sent END_GAME, it means I won */
+                extern uint8_t opponent_ships_remaining;
+                extern void update_opponent_ships_leds(uint8_t ships_remaining);
+                
+                if (opponent_ships_remaining > 0)
+                {
+                    opponent_ships_remaining--;
+                    update_opponent_ships_leds(opponent_ships_remaining);
+                    printf("Opponent ship SUNK! %d ships remaining\r\n", opponent_ships_remaining);
+                }
             }
         }
         else if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_GAME_CONTROL)
@@ -105,10 +113,19 @@ void task_ipc_rx(void *param)
                 printf("Received ACK from Player 2\r\n");
             }
             /* Handle PLAYER_READY (for later game phases) */
-            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_PLAYER_READY)
+            if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_PLAYER_READY)
             {
                 extern bool opponent_ready;
                 opponent_ready = true;
+                printf("Received PLAYER_READY from opponent - opponent has placed all ships!\r\n");
+            }
+            /* Handle PASS_TURN - opponent passed their turn to me */
+            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_PASS_TURN)
+            {
+                extern uint8_t current_turn;
+                extern uint8_t player_id;
+                current_turn = player_id;  /* Set turn to my player ID */
+                printf("Received PASS_TURN - now it's MY turn! (current_turn=%d)\r\n", current_turn);
             }
             /* Handle END_GAME - opponent lost, so I won */
             else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_END_GAME)
