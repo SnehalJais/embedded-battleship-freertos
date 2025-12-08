@@ -37,6 +37,15 @@ void task_ipc_tx(void *param)
                                    (packet.cmd == IPC_CMD_RESULT) ? "RESULT" :
                                    (packet.cmd == IPC_CMD_GAME_CONTROL) ? "GAME_CONTROL" :
                                    (packet.cmd == IPC_CMD_ERROR) ? "ERROR" : "UNKNOWN";
+            
+            /* Special debug for RESULT_SUNK */
+            if (packet.cmd == IPC_CMD_RESULT && packet.load.result == IPC_RESULT_SUNK)
+            {
+                printf("╔═══════════════════════════════════════════════════════════╗\r\n");
+                printf("║ SENDING: IPC_RESULT_SUNK (0xB2)                           ║\r\n");
+                printf("╚═══════════════════════════════════════════════════════════╝\r\n");
+            }
+            
             printf("IPC TX Task: Transmitting packet - CMD: %s (%d), checksum: 0x%02X\r\n", 
                    cmd_name, packet.cmd, packet.checksum);
             

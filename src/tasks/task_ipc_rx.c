@@ -52,7 +52,14 @@ void task_ipc_rx(void *param)
         // Validate packet once to avoid multiple validation calls
         bool is_valid = validate_packet(IPC_Rx_Consume_Buffer);
 
-        if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_FIRE)
+        if (!is_valid)
+        {
+            /* Packet validation failed - send error to opponent */
+            printf("IPC RX: Packet validation FAILED! Sending IPC_ERROR_CHECKSUM...\r\n");
+            extern bool ipc_send_error(ipc_error_t error);
+            ipc_send_error(IPC_ERROR_CHECKSUM);
+        }
+        else if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_FIRE)
         {
             // Valid FIRE command
             uint8_t fire_row = IPC_Rx_Consume_Buffer->load.fire.row;

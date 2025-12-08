@@ -93,7 +93,7 @@ uint8_t last_fire_col = 0;
 
 /* Track hits on each ship - ship_hit_count[ship_id-1] = number of hits */
 uint8_t ship_hit_count[5] = {0};           /* 5 ships, 0 hits initially */
-uint8_t ship_lengths[5] = {5, 4, 3, 3, 2}; /* Carrier, Battleship, Cruiser, Submarine, Destroyer */
+uint8_t ship_lengths[5] = {2, 3, 3, 4, 5}; /* Destroyer, Submarine, Cruiser, Battleship, Carrier (matches placement order) */
 bool light_mode;                           // checking if light mode or dark mode
 #define LIGHT_THRESHOLD 200
 
@@ -194,12 +194,42 @@ void handle_incoming_fire(uint8_t fire_row, uint8_t fire_col)
         xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
 
         /* Check if ship is sunk */
-        if (ship_hit_count[ship_id - 1] >= ship_lengths[ship_id - 1])
+        if (ship_hit_count[ship_id - 1] == ship_lengths[ship_id - 1])
         {
-            printf("  ⚓⚓⚓ SHIP %d IS SUNK! (hits: %d >= length: %d) ⚓⚓⚓\r\n",
+            printf("  ⚓⚓⚓ SHIP %d IS SUNK! (hits: %d == length: %d) ⚓⚓⚓\r\n",
                    ship_id, ship_hit_count[ship_id - 1], ship_lengths[ship_id - 1]);
             printf("  Sending IPC_RESULT_SUNK...\r\n");
             ipc_send_result(IPC_RESULT_SUNK);
+
+            /* Check if this was my last ship - count how many ships are fully sunk */
+            uint8_t ships_sunk = 0;
+            for (uint8_t i = 0; i < 5; i++)
+            {
+                if (ship_hit_count[i] >= ship_lengths[i])
+                {
+                    ships_sunk++;
+                }
+            }
+
+            if (ships_sunk == 5) /* All my ships are destroyed */
+            {
+                extern bool game_over;
+                extern bool i_won;
+                printf("  ╔═══════════════════════════════════════════╗\r\n");
+                printf("  ║ ALL MY SHIPS DESTROYED - I LOST!          ║\r\n");
+                printf("  ╚═══════════════════════════════════════════╝\r\n");
+                printf("  Sending IPC_GAME_CONTROL_END_GAME...\r\n");
+                game_over = true;
+                i_won = false;
+                ipc_send_game_control(IPC_GAME_CONTROL_END_GAME);
+                printf("  END_GAME signal sent!\r\n");
+            }
+        }
+        else if (ship_hit_count[ship_id - 1] > ship_lengths[ship_id - 1])
+        {
+            /* Ship already sunk - this is a redundant hit on a dead ship */
+            printf("  Ship %d already sunk - Sending IPC_RESULT_HIT (redundant hit)\r\n", ship_id);
+            ipc_send_result(IPC_RESULT_HIT);
         }
         else
         {
@@ -469,7 +499,7 @@ void task_gameplay(void)
                 lcd_msg.payload.battleship.row = row;
                 lcd_msg.payload.battleship.col = col;
                 lcd_msg.payload.battleship.fill_color = LCD_COLOR_RED;
-                lcd_msg.payload.battleship.border_color = board_border_color;
+                lcd_msg.payload.battleship.border_color = LCD_COLOR_BLUE; // this line changed
                 xQueueSend(xQueue_LCD, &lcd_msg, 0);
                 xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
             }
@@ -760,14 +790,6 @@ void task_gameplay(void)
         /* game_over will be set by IPC RX task when opponent wins */
     }
 
-    /* If timeout reached, test with a win condition */
-    if (!game_over)
-    {
-        printf("Game timeout - simulating win for testing\r\n");
-        i_won = true;
-        game_over = true;
-    }
-
     /* Display game end message */
     lcd_msg.command = LCD_CMD_CLEAR_SCREEN;
     lcd_msg.response_queue = xQueue_LCD_response;
@@ -781,8 +803,7 @@ void task_gameplay(void)
     else
     {
         printf("YOU LOSE!\r\n");
-        /* Send END_GAME to opponent since I lost */
-        ipc_send_game_control(IPC_GAME_CONTROL_END_GAME);
+        /* END_GAME already sent when ships were destroyed - don't send again */
     }
 
     /* Reassign console_payload after changing message type */
