@@ -80,10 +80,21 @@ uint8_t opponent_ships_remaining = 5; /* Number of opponent's ships still alive 
 /* This is used by task_ipc_rx.c to check opponent's fire commands */
 uint8_t occupied_board[10][10] = {0};
 
+/* Track which tiles have been hit (turned red) - 0 = not hit, 1 = hit */
+uint8_t hit_tiles[10][10] = {0};
+
+/* Track opponent's board - tiles you've fired at and the results */
+/* 0 = unknown/never fired, 1 = hit, 2 = miss */
+uint8_t opponent_board[10][10] = {0};
+
+/* Track last fire coordinates so RESULT handler knows which tile to update */
+uint8_t last_fire_row = 0;
+uint8_t last_fire_col = 0;
+
 /* Track hits on each ship - ship_hit_count[ship_id-1] = number of hits */
 uint8_t ship_hit_count[5] = {0};           /* 5 ships, 0 hits initially */
 uint8_t ship_lengths[5] = {5, 4, 3, 3, 2}; /* Carrier, Battleship, Cruiser, Submarine, Destroyer */
-bool light_mode; // checking if light mode or dark mode
+bool light_mode;                           // checking if light mode or dark mode
 #define LIGHT_THRESHOLD 200
 
 /* Board tile color - determined at game start and stays consistent */
@@ -167,6 +178,9 @@ void handle_incoming_fire(uint8_t fire_row, uint8_t fire_col)
         /* Increment hit count for this ship */
         ship_hit_count[ship_id - 1]++;
 
+        /* Mark this tile as hit */
+        hit_tiles[fire_row][fire_col] = 1;
+
         /* Draw red tile on MY board to show hit */
         lcd_msg_t lcd_msg;
         lcd_cmd_status_t status;
@@ -182,7 +196,9 @@ void handle_incoming_fire(uint8_t fire_row, uint8_t fire_col)
         /* Check if ship is sunk */
         if (ship_hit_count[ship_id - 1] >= ship_lengths[ship_id - 1])
         {
-            printf("Ship %d SUNK!\r\n", ship_id);
+            printf("  ⚓⚓⚓ SHIP %d IS SUNK! (hits: %d >= length: %d) ⚓⚓⚓\r\n",
+                   ship_id, ship_hit_count[ship_id - 1], ship_lengths[ship_id - 1]);
+            printf("  Sending IPC_RESULT_SUNK...\r\n");
             ipc_send_result(IPC_RESULT_SUNK);
         }
         else
@@ -193,6 +209,9 @@ void handle_incoming_fire(uint8_t fire_row, uint8_t fire_col)
     else /* Miss */
     {
         printf("MISS at (%d,%d)\r\n", fire_row, fire_col);
+
+        /* Don't draw anything for misses - keep the board as is */
+
         ipc_send_result(IPC_RESULT_MISS);
     }
 }
@@ -409,7 +428,7 @@ void task_gameplay(void)
     lcd_cmd_status_t status;
 
     /* ATTACK PHASE - Game loop */
-    uint32_t game_timeout = 60000; /* 60 seconds for testing */
+    uint32_t game_timeout = 300000; /* 5 minutes for testing */
     uint32_t game_elapsed = 0;
     char score_buffer[32];
     lcd_console_payload_t *console_payload;
@@ -420,19 +439,90 @@ void task_gameplay(void)
     uint32_t last_joystick_move = 0;
     const uint32_t JOYSTICK_DEBOUNCE = 300;
     bool cursor_needs_redraw = true; /* Flag to redraw cursor on movement */
-    
+
+    /* Draw YOUR board with your ships */
+    lcd_msg.command = LCD_CMD_DRAW_BOARD;
+    lcd_msg.response_queue = xQueue_LCD_response;
+    xQueueSend(xQueue_LCD, &lcd_msg, 0);
+    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+
+    /* Draw all your placed ships in green */
+    for (uint8_t row = 0; row < 10; row++)
+    {
+        for (uint8_t col = 0; col < 10; col++)
+        {
+            if (occupied_board[row][col] > 0) /* Ship present */
+            {
+                lcd_msg.command = LCD_CMD_DRAW_TILE;
+                lcd_msg.response_queue = xQueue_LCD_response;
+                lcd_msg.payload.battleship.row = row;
+                lcd_msg.payload.battleship.col = col;
+                lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
+                lcd_msg.payload.battleship.border_color = board_border_color;
+                xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
+            }
+            else if (hit_tiles[row][col] == 1) /* Hit on your board */
+            {
+                lcd_msg.command = LCD_CMD_DRAW_TILE;
+                lcd_msg.response_queue = xQueue_LCD_response;
+                lcd_msg.payload.battleship.row = row;
+                lcd_msg.payload.battleship.col = col;
+                lcd_msg.payload.battleship.fill_color = LCD_COLOR_RED;
+                lcd_msg.payload.battleship.border_color = board_border_color;
+                xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
+            }
+        }
+    }
+
     /* Draw initial yellow cursor at (0,0) */
     lcd_msg.command = LCD_CMD_DRAW_TILE;
     lcd_msg.response_queue = xQueue_LCD_response;
     lcd_msg.payload.battleship.row = target_row;
     lcd_msg.payload.battleship.col = target_col;
-    lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
+
+    /* Determine fill color at cursor start position */
+    if (hit_tiles[target_row][target_col] == 1)
+    {
+        lcd_msg.payload.battleship.fill_color = LCD_COLOR_RED;
+    }
+    else if (occupied_board[target_row][target_col] > 0)
+    {
+        lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
+    }
+    else
+    {
+        lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
+    }
     lcd_msg.payload.battleship.border_color = LCD_COLOR_YELLOW;
     xQueueSend(xQueue_LCD, &lcd_msg, 0);
     xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
 
     while (!game_over && game_elapsed < game_timeout)
     {
+
+        if (battleship_check_light_threshold())
+        {
+            /* Light threshold crossed - redraw all empty tiles with new color (preserves placed ships) */
+            for (uint8_t row = 0; row < 10; row++)
+            {
+                for (uint8_t col = 0; col < 10; col++)
+                {
+                    if (occupied_board[row][col] == 0) /* Only redraw empty tiles */
+                    {
+                        lcd_msg.command = LCD_CMD_DRAW_TILE;
+                        lcd_msg.response_queue = xQueue_LCD_response;
+                        lcd_msg.payload.battleship.row = row;
+                        lcd_msg.payload.battleship.col = col;
+                        lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
+                        lcd_msg.payload.battleship.border_color = board_border_color;
+                        xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                        xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
+                    }
+                }
+            }
+        }
         /* Check if light threshold has changed - updates board_tile_fill_color if needed */
         battleship_check_light_threshold();
 
@@ -490,7 +580,7 @@ void task_gameplay(void)
                     /* Save previous position for clearing */
                     prev_target_row = target_row;
                     prev_target_col = target_col;
-                    
+
                     switch (joystick_pos)
                     {
                     case JOYSTICK_POS_LEFT:
@@ -522,45 +612,67 @@ void task_gameplay(void)
                     }
                 }
             }
-            
+
             /* Redraw cursor if it moved */
             if (cursor_needs_redraw)
             {
-                /* Clear old cursor position - restore to default board color */
-                /* Only clear if no ship is at the previous position */
-                if (occupied_board[prev_target_row][prev_target_col] == 0)
+                /* Restore previous tile - redraw it with its original appearance without the yellow border */
+                lcd_msg.command = LCD_CMD_DRAW_TILE;
+                lcd_msg.response_queue = xQueue_LCD_response;
+                lcd_msg.payload.battleship.row = prev_target_row;
+                lcd_msg.payload.battleship.col = prev_target_col;
+
+                /* Restore original colors based on board state */
+                if (hit_tiles[prev_target_row][prev_target_col] == 1)
                 {
-                    lcd_msg.command = LCD_CMD_DRAW_TILE;
-                    lcd_msg.response_queue = xQueue_LCD_response;
-                    lcd_msg.payload.battleship.row = prev_target_row;
-                    lcd_msg.payload.battleship.col = prev_target_col;
-                    lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
-                    lcd_msg.payload.battleship.border_color = board_border_color;
-                    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-                    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+                    /* Hit on your board - keep red (priority over ship color) */
+                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_RED;
+                }
+                else if (occupied_board[prev_target_row][prev_target_col] > 0)
+                {
+                    /* Your own ship - keep yellow */
+                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
                 }
                 else
                 {
-                    /* There's a ship here - redraw it in green to restore it */
-                    lcd_msg.command = LCD_CMD_DRAW_TILE;
-                    lcd_msg.response_queue = xQueue_LCD_response;
-                    lcd_msg.payload.battleship.row = prev_target_row;
-                    lcd_msg.payload.battleship.col = prev_target_col;
-                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_GREEN;
-                    lcd_msg.payload.battleship.border_color = board_border_color;
-                    xQueueSend(xQueue_LCD, &lcd_msg, 0);
-                    xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
+                    /* Empty tile - restore board color */
+                    lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
                 }
-                
-                /* Draw new cursor position with yellow border */
+
+                /* Restore original border color (board border, not yellow) */
+                lcd_msg.payload.battleship.border_color = board_border_color;
+
+                xQueueSend(xQueue_LCD, &lcd_msg, 0);
+                xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(50));
+
+                /* Draw new cursor position with yellow border only - don't change fill */
                 lcd_msg.command = LCD_CMD_DRAW_TILE;
+                lcd_msg.response_queue = xQueue_LCD_response;
                 lcd_msg.payload.battleship.row = target_row;
                 lcd_msg.payload.battleship.col = target_col;
-                lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
+
+                /* Keep the fill color as-is, only change border to yellow */
+                if (occupied_board[target_row][target_col] > 0)
+                {
+                    /* Your own ship - keep yellow fill */
+                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_YELLOW;
+                }
+                else if (hit_tiles[target_row][target_col] == 1)
+                {
+                    /* Hit on your board - keep red fill */
+                    lcd_msg.payload.battleship.fill_color = LCD_COLOR_RED;
+                }
+                else
+                {
+                    /* Empty tile - keep board color fill */
+                    lcd_msg.payload.battleship.fill_color = board_tile_fill_color;
+                }
+
+                /* Only change border to yellow for the cursor */
                 lcd_msg.payload.battleship.border_color = LCD_COLOR_YELLOW;
                 xQueueSend(xQueue_LCD, &lcd_msg, 0);
                 xQueueReceive(xQueue_LCD_response, &status, pdMS_TO_TICKS(100));
-                
+
                 cursor_needs_redraw = false;
             }
 
@@ -573,13 +685,36 @@ void task_gameplay(void)
 
             if (button_event & ECE353_RTOS_EVENTS_SW1)
             {
+                static uint32_t fire_count = 0;
+                fire_count++;
+
+                /* Save fire coordinates for RESULT handler */
+                last_fire_row = target_row;
+                last_fire_col = target_col;
+
                 /* Send fire command with target coordinates */
-                printf("FIRING at row=%d, col=%d\r\n", target_row, target_col);
-                ipc_send_fire(target_row, target_col);
+                printf(">>> FIRE #%lu at row=%d, col=%d <<<\r\n", fire_count, target_row, target_col);
+
+                if (!ipc_send_fire(target_row, target_col))
+                {
+                    printf("ERROR: Failed to send fire command!\r\n");
+                }
+                else
+                {
+                    printf("Fire command #%lu sent successfully!\r\n", fire_count);
+                }
 
                 /* Pass turn to opponent */
-                ipc_send_game_control(IPC_GAME_CONTROL_PASS_TURN);
+                if (!ipc_send_game_control(IPC_GAME_CONTROL_PASS_TURN))
+                {
+                    printf("ERROR: Failed to send PASS_TURN!\r\n");
+                }
+                else
+                {
+                    printf("PASS_TURN sent successfully!\r\n");
+                }
                 current_turn = 1 - current_turn;
+                printf("Current turn updated to: %d\r\n", current_turn);
 
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
@@ -587,7 +722,42 @@ void task_gameplay(void)
 
         vTaskDelay(pdMS_TO_TICKS(100));
         game_elapsed += 100;
-        /* game_over will be set by IPC RX task when win condition detected */
+
+        /* Check win condition - if opponent has no ships left, I won */
+        if (opponent_ships_remaining == 0)
+        {
+            printf("All opponent ships sunk! I WON!\r\n");
+            game_over = true;
+            i_won = true;
+        }
+
+        /* Check lose condition - if I have no ships left, I lost */
+        extern uint8_t player_id;
+        uint8_t my_ships_remaining = 0;
+        for (uint8_t row = 0; row < 10; row++)
+        {
+            for (uint8_t col = 0; col < 10; col++)
+            {
+                if (occupied_board[row][col] > 0) /* Found a ship tile */
+                {
+                    if (hit_tiles[row][col] == 0) /* Not hit yet */
+                    {
+                        my_ships_remaining++;
+                    }
+                }
+            }
+        }
+
+        if (my_ships_remaining == 0 && (occupied_board[0][0] > 0 || occupied_board[1][0] > 0)) /* All my ships are sunk */
+        {
+            printf("  Unhit ship tiles remaining: %d\r\n", my_ships_remaining);
+            printf("  Sending IPC_GAME_CONTROL_END_GAME...\r\n");
+            game_over = true;
+            i_won = false;
+            ipc_send_game_control(IPC_GAME_CONTROL_END_GAME);
+            printf("  END_GAME signal sent!\r\n");
+        }
+        /* game_over will be set by IPC RX task when opponent wins */
     }
 
     /* If timeout reached, test with a win condition */
@@ -635,11 +805,69 @@ void task_gameplay(void)
 
     vTaskDelay(pdMS_TO_TICKS(3000)); /* Show result for 3 seconds */
 
-    /* Task completes - game ends */
-    while (1)
+    /* Wait for opponent to acknowledge game end */
+    vTaskDelay(pdMS_TO_TICKS(2000));
+
+    /* Reset game state for next game */
+    printf("Resetting game state for next game...\r\n");
+    game_over = false;
+    i_won = false;
+    opponent_ready = false;
+    ack_received = false;
+    my_hits = 0;
+    my_misses = 0;
+    opponent_hits = 0;
+    opponent_misses = 0;
+    opponent_ships_remaining = 5;
+    current_turn = 0;
+
+    /* Clear all game boards */
+    for (uint8_t i = 0; i < 10; i++)
     {
-        vTaskDelay(pdMS_TO_TICKS(100)); /* Just idle */
+        for (uint8_t j = 0; j < 10; j++)
+        {
+            occupied_board[i][j] = 0;
+            hit_tiles[i][j] = 0;
+            opponent_board[i][j] = 0;
+        }
     }
+
+    /* Clear ship hit counts */
+    for (uint8_t i = 0; i < 5; i++)
+    {
+        ship_hit_count[i] = 0;
+    }
+
+    /* Set who goes first next game based on next_first_player */
+    player_id = next_first_player;
+
+    /* Update border color based on new player ID */
+    if (player_id == 0)
+    {
+        board_border_color = LCD_COLOR_BLUE;
+        printf("Next game: I am Player 1 (Blue border)\r\n");
+    }
+    else
+    {
+        board_border_color = LCD_COLOR_RED;
+        printf("Next game: I am Player 2 (Red border)\r\n");
+    }
+
+    /* Setup rotation for game after next */
+    if (player_id == 0)
+    {
+        next_first_player = 1;
+    }
+    else
+    {
+        next_first_player = 0;
+    }
+
+    /* Start new game by calling task_ship_placement again */
+    printf("Starting new game!\r\n");
+    task_ship_placement();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    task_gameplay(); /* Recursively call gameplay for next game */
 }
 
 /**
@@ -675,9 +903,6 @@ void task_ship_placement(void)
     /* Track cursor tile positions to know what to clear */
     uint8_t cursor_tiles[5][2]; /* Store col,row of cursor tiles */
     uint8_t cursor_tile_count = 0;
-
-    /* Track which tiles have placed ships - never clear these */
-    uint8_t occupied_board[10][10] = {0}; /* 0 = empty, 1 = ship placed here */
 
     /* Clear battleship board and create IMU queue */
     battleship_board_clear();
@@ -946,13 +1171,15 @@ void task_ship_placement(void)
 
                 vTaskDelay(pdMS_TO_TICKS(50));
 
-                /* Mark all tiles this ship occupies as occupied */
+                /* Mark all tiles this ship occupies with ship ID (1-5) */
                 uint8_t ship_length = battleship_get_ship_length(ship_types[current_ship]);
+                uint8_t ship_id = current_ship + 1; /* Ship IDs are 1-5 */
                 for (uint8_t i = 0; i < ship_length; i++)
                 {
                     uint8_t mark_col = ship_orientation ? (cursor_col + i) : cursor_col;
                     uint8_t mark_row = ship_orientation ? cursor_row : (cursor_row + i);
-                    occupied_board[mark_row][mark_col] = 1;
+                    occupied_board[mark_row][mark_col] = ship_id; /* Update both local and global */
+                    printf("Marked occupied_board[%d][%d] = %d\r\n", mark_row, mark_col, ship_id);
                 }
 
                 ships_placed++;
@@ -982,7 +1209,7 @@ void task_ship_placement(void)
 
     printf("All ships placed! Sending PLAYER_READY...\r\n");
     ipc_send_game_control(IPC_GAME_CONTROL_PLAYER_READY);
-    
+
     /* Wait for opponent to also finish ship placement and send PLAYER_READY */
     printf("Waiting for opponent to finish ship placement...\r\n");
     /* Don't reset opponent_ready - they may have already sent PLAYER_READY */

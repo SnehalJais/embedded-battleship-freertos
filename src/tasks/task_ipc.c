@@ -145,13 +145,22 @@ bool ipc_send_game_control(ipc_game_control_t control)
     packet.cmd = IPC_CMD_GAME_CONTROL;
     packet.load.game_control = control;
     packet.checksum = calculate_checksum(&packet);
+    
+    const char *control_name = (control == IPC_GAME_CONTROL_NEW_GAME) ? "NEW_GAME" : 
+                               (control == IPC_GAME_CONTROL_PLAYER_READY) ? "PLAYER_READY" :
+                               (control == IPC_GAME_CONTROL_PASS_TURN) ? "PASS_TURN" :
+                               (control == IPC_GAME_CONTROL_ACK) ? "ACK" :
+                               (control == IPC_GAME_CONTROL_END_GAME) ? "END_GAME" : "UNKNOWN";
+    printf("IPC TX: Sending GAME_CONTROL: %s (value=%d)\r\n", control_name, control);
 
     // transmit the packet
     if (xQueueSend(Queue_IPC_Tx, &packet, pdMS_TO_TICKS(100)) != pdTRUE)
     {
+        printf("IPC TX: Failed to queue GAME_CONTROL packet!\r\n");
         return false; // Failed to send packet to IPC Tx Task
     }
 
+    printf("IPC TX: GAME_CONTROL packet queued successfully\r\n");
     return true; // Packet sent successfully
 }
 

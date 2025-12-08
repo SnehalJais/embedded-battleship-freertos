@@ -33,11 +33,19 @@ void task_ipc_tx(void *param)
     {
         if (xQueueReceive(Queue_IPC_Tx, &packet, portMAX_DELAY) == pdTRUE)
         {
+            const char *cmd_name = (packet.cmd == IPC_CMD_FIRE) ? "FIRE" :
+                                   (packet.cmd == IPC_CMD_RESULT) ? "RESULT" :
+                                   (packet.cmd == IPC_CMD_GAME_CONTROL) ? "GAME_CONTROL" :
+                                   (packet.cmd == IPC_CMD_ERROR) ? "ERROR" : "UNKNOWN";
+            printf("IPC TX Task: Transmitting packet - CMD: %s (%d), checksum: 0x%02X\r\n", 
+                   cmd_name, packet.cmd, packet.checksum);
+            
             for(int i = 0; i < sizeof(ipc_packet_t); i++)
             {
                 // Transmit the next byte
                 cyhal_uart_putc(&IPC_Uart_Obj, ((uint8_t *)&packet)[i]);
             }
+            printf("IPC TX Task: Packet transmission complete (%d bytes)\r\n", sizeof(ipc_packet_t));
         }
     }
 }

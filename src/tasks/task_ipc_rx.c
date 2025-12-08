@@ -45,6 +45,8 @@ void task_ipc_rx(void *param)
     {
         // Wait for a FreeRTOS Task Notification
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        
+        printf("IPC RX: Packet received, processing...\r\n");
 
         // Process the IPC Packet stored in the consume buffer
         // Validate packet once to avoid multiple validation calls
@@ -69,17 +71,44 @@ void task_ipc_rx(void *param)
                                                                                                                                                                : "UNKNOWN";
             printf("IPC RX Task       : Result: %s\n\r", result_str);
             
+            /* Update my hit/miss counters and opponent_board */
+            extern uint16_t my_hits;
+            extern uint16_t my_misses;
+            extern uint8_t opponent_board[10][10];
+            extern uint8_t last_fire_row;
+            extern uint8_t last_fire_col;
+            
+            if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_HIT || 
+                IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)
+            {
+                my_hits++;
+                opponent_board[last_fire_row][last_fire_col] = 1;  /* Mark as HIT on opponent's board */
+                printf("My hits: %d\r\n", my_hits);
+            }
+            else if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_MISS)
+            {
+                my_misses++;
+                opponent_board[last_fire_row][last_fire_col] = 2;  /* Mark as MISS on opponent's board */
+                printf("My misses: %d\r\n", my_misses);
+            }
+            
             /* If opponent's ship was sunk, update LED counter */
             if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)
             {
                 extern uint8_t opponent_ships_remaining;
                 extern void update_opponent_ships_leds(uint8_t ships_remaining);
                 
+                printf("╔═══════════════════════════════════════════════════════════╗\r\n");
+                printf("║ RECEIVED: IPC_RESULT_SUNK - OPPONENT SHIP SUNK!           ║\r\n");
+                printf("╚═══════════════════════════════════════════════════════════╝\r\n");
+                printf("  Ships remaining BEFORE: %d\r\n", opponent_ships_remaining);
+                
                 if (opponent_ships_remaining > 0)
                 {
                     opponent_ships_remaining--;
+                    printf("  Ships remaining AFTER:  %d\r\n", opponent_ships_remaining);
                     update_opponent_ships_leds(opponent_ships_remaining);
-                    printf("Opponent ship SUNK! %d ships remaining\r\n", opponent_ships_remaining);
+                    printf("  LEDs/EEPROM updated!\r\n");
                 }
             }
         }
@@ -106,7 +135,7 @@ void task_ipc_rx(void *param)
                 ipc_send_game_control(IPC_GAME_CONTROL_ACK);
             }
             /* Handle ACK - Player 1 receives this */
-            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_ACK)
+            if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_ACK)
             {
                 extern bool ack_received;
                 ack_received = true;
@@ -120,7 +149,7 @@ void task_ipc_rx(void *param)
                 printf("Received PLAYER_READY from opponent - opponent has placed all ships!\r\n");
             }
             /* Handle PASS_TURN - opponent passed their turn to me */
-            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_PASS_TURN)
+            if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_PASS_TURN)
             {
                 extern uint8_t current_turn;
                 extern uint8_t player_id;
@@ -128,7 +157,7 @@ void task_ipc_rx(void *param)
                 printf("Received PASS_TURN - now it's MY turn! (current_turn=%d)\r\n", current_turn);
             }
             /* Handle END_GAME - opponent lost, so I won */
-            else if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_END_GAME)
+            if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_END_GAME)
             {
                 extern bool game_over;
                 extern bool i_won;
