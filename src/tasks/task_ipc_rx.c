@@ -45,7 +45,7 @@ void task_ipc_rx(void *param)
     {
         // Wait for a FreeRTOS Task Notification
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        
+
         printf("IPC RX: Packet received, processing...\r\n");
 
         // Process the IPC Packet stored in the consume buffer
@@ -65,7 +65,7 @@ void task_ipc_rx(void *param)
             uint8_t fire_row = IPC_Rx_Consume_Buffer->load.fire.row;
             uint8_t fire_col = IPC_Rx_Consume_Buffer->load.fire.col;
             printf("IPC RX Task       : Fire at row=%d, col=%d\n\r", fire_row, fire_col);
-            
+
             /* Call handler function in hw05.c */
             extern void handle_incoming_fire(uint8_t fire_row, uint8_t fire_col);
             handle_incoming_fire(fire_row, fire_col);
@@ -77,39 +77,39 @@ void task_ipc_rx(void *param)
                                                                                                     : (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)  ? "SUNK"
                                                                                                                                                                : "UNKNOWN";
             printf("IPC RX Task       : Result: %s\n\r", result_str);
-            
+
             /* Update my hit/miss counters and opponent_board */
             extern uint16_t my_hits;
             extern uint16_t my_misses;
             extern uint8_t opponent_board[10][10];
             extern uint8_t last_fire_row;
             extern uint8_t last_fire_col;
-            
-            if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_HIT || 
+
+            if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_HIT ||
                 IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)
             {
                 my_hits++;
-                opponent_board[last_fire_row][last_fire_col] = 1;  /* Mark as HIT on opponent's board */
+                opponent_board[last_fire_row][last_fire_col] = 1; /* Mark as HIT on opponent's board */
                 printf("My hits: %d\r\n", my_hits);
             }
             else if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_MISS)
             {
                 my_misses++;
-                opponent_board[last_fire_row][last_fire_col] = 2;  /* Mark as MISS on opponent's board */
+                opponent_board[last_fire_row][last_fire_col] = 2; /* Mark as MISS on opponent's board */
                 printf("My misses: %d\r\n", my_misses);
             }
-            
+
             /* If opponent's ship was sunk, update LED counter */
             if (IPC_Rx_Consume_Buffer->load.result == IPC_RESULT_SUNK)
             {
                 extern uint8_t opponent_ships_remaining;
                 extern void update_opponent_ships_leds(uint8_t ships_remaining);
-                
+
                 printf("╔═══════════════════════════════════════════════════════════╗\r\n");
                 printf("║ RECEIVED: IPC_RESULT_SUNK - OPPONENT SHIP SUNK!           ║\r\n");
                 printf("╚═══════════════════════════════════════════════════════════╝\r\n");
                 printf("  Ships remaining BEFORE: %d\r\n", opponent_ships_remaining);
-                
+
                 if (opponent_ships_remaining > 0)
                 {
                     opponent_ships_remaining--;
@@ -129,14 +129,14 @@ void task_ipc_rx(void *param)
                                                                                                                                  : (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_END_GAME)       ? "CONTROL_END_GAME"
                                                                                                                                                                                                                  : "UNKNOWN";
             printf("IPC RX Task       : Game Control: %s\n\r", control_str);
-            
+
             /* Handle NEW_GAME - Player 2 receives this */
             if (IPC_Rx_Consume_Buffer->load.game_control == IPC_GAME_CONTROL_NEW_GAME)
             {
                 extern bool opponent_ready;
                 extern uint8_t player_id;
-                opponent_ready = true;  /* Signal that opponent pressed SW1 */
-                player_id = 1;          /* I am Player 2 */
+                opponent_ready = true; /* Signal that opponent pressed SW1 */
+                player_id = 1;         /* I am Player 2 */
                 printf("Received NEW_GAME - I am Player 2\r\n");
                 /* Send ACK back to Player 1 */
                 ipc_send_game_control(IPC_GAME_CONTROL_ACK);
@@ -160,7 +160,7 @@ void task_ipc_rx(void *param)
             {
                 extern uint8_t current_turn;
                 extern uint8_t player_id;
-                current_turn = player_id;  /* Set turn to my player ID */
+                current_turn = player_id; /* Set turn to my player ID */
                 printf("Received PASS_TURN - now it's MY turn! (current_turn=%d)\r\n", current_turn);
             }
             /* Handle END_GAME - opponent lost, so I won */
@@ -170,7 +170,7 @@ void task_ipc_rx(void *param)
                 extern bool i_won;
                 printf("Received END_GAME from opponent - I WON!\r\n");
                 game_over = true;
-                i_won = true;  /* Opponent sent END_GAME means they lost, I won */
+                i_won = true; /* Opponent sent END_GAME means they lost, I won */
             }
         }
         else if (is_valid && IPC_Rx_Consume_Buffer->cmd == IPC_CMD_ERROR)
@@ -198,12 +198,12 @@ bool task_ipc_resources_init_rx(void)
 {
     // Create the IPC Rx Task
     BaseType_t task_ipc_rx_status = xTaskCreate(
-        task_ipc_rx,       // Function that implements the task.
-        "IPC Rx Task",     // Text name for the task.
-        IPC_STACK_SIZE,    // Stack size in words, not bytes.
-        NULL,              // Parameter passed into the task.
-        IPC_PRIORITY,      // Priority at which the task is created.
-        &TaskHandle_IPC_Rx // Used to pass out the created task's handle.
+        task_ipc_rx,        // Function that implements the task.
+        "IPC Rx Task",      // Text name for the task.
+        IPC_STACK_SIZE * 5, // Stack size in words, not bytes.
+        NULL,               // Parameter passed into the task.
+        IPC_PRIORITY,       // Priority at which the task is created.
+        &TaskHandle_IPC_Rx  // Used to pass out the created task's handle.
     );
 
     if (task_ipc_rx_status != pdPASS)
