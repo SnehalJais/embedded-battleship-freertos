@@ -57,10 +57,10 @@ My primary contributions across these projects include:
 
 ---
 
-## Project 1: HW01 Alarm Clock (No RTC)
+## Project 1: HW01 Alarm Clock 
 
 ### Summary
-The alarm clock project was implemented **without a hardware RTC**, which required software-based timing and periodic behavior management.
+The alarm clock project was implemented, which required software-based timing and periodic behavior management.
 
 ### Why It Matters
 This project was important because it developed core embedded skills that were later useful in Battleship:
@@ -99,4 +99,5 @@ The Battleship project is the primary game-based embedded application in this re
 - **Interfaces/Concepts:** UART, GPIO, interrupts, task scheduling, state machines
 - **Build Flow:** Makefile-based build environment
 - **Tooling/Environment:** ModusToolbox / embedded toolchain ecosystem (provided scaffold)
+
 
